@@ -1,0 +1,178 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RolUsuario {
+  ADMIN
+  SUPERVISOR
+}
+
+enum DecisionGestion {
+  NO_REQUIERE
+  SEGUIMIENTO
+  CAPACITACION
+  SUPERVISION_INTENSIVA
+}
+
+enum Clasificacion {
+  CRITICO
+  REGULAR
+  BUENO
+  EXCELENTE
+}
+
+model Usuario {
+  id           Int        @id @default(autoincrement())
+  nombre       String
+  apellido     String
+  email        String     @unique
+  passwordHash String
+  rol          RolUsuario
+  activo       Boolean    @default(true)
+
+  supervisiones Supervision[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AreaOperativa {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique
+  descripcion String?
+  activo      Boolean @default(true)
+
+  agentes       AgenteSanitario[]
+  sectores      Sector[]
+  supervisiones Supervision[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Sector {
+  id              Int     @id @default(autoincrement())
+  areaOperativaId Int
+  numero          Int
+  nombre          String?
+  activo          Boolean @default(true)
+
+  areaOperativa AreaOperativa @relation(fields: [areaOperativaId], references: [id])
+  supervisiones Supervision[]
+
+  @@unique([areaOperativaId, numero])
+  @@index([areaOperativaId])
+}
+
+model AgenteSanitario {
+  id              Int     @id @default(autoincrement())
+  areaOperativaId Int
+  nombre          String
+  apellido        String
+  documento       String?
+  legajo          String?
+  activo          Boolean @default(true)
+
+  areaOperativa AreaOperativa @relation(fields: [areaOperativaId], references: [id])
+  supervisiones Supervision[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([areaOperativaId])
+}
+
+model BloqueEvaluacion {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique
+  descripcion String?
+  orden       Int
+  activo      Boolean @default(true)
+
+  criterios CriterioEvaluacion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CriterioEvaluacion {
+  id          Int     @id @default(autoincrement())
+  bloqueId    Int
+  nombre      String
+  descripcion String?
+  orden       Int
+  activo      Boolean @default(true)
+
+  bloque       BloqueEvaluacion     @relation(fields: [bloqueId], references: [id])
+  evaluaciones EvaluacionCriterio[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bloqueId])
+}
+
+model Supervision {
+  id                Int @id @default(autoincrement())
+  agenteSanitarioId Int
+  supervisorId      Int
+  areaOperativaId   Int
+  sectorId          Int
+
+  fecha         DateTime
+  familiaNumero Int?
+  rondaNumero   Int?
+
+  decisionGestion DecisionGestion
+
+  promedio      Decimal?       @db.Decimal(4, 2)
+  clasificacion Clasificacion?
+
+  fortalezas          String?
+  oportunidadesMejora String?
+  situacionesCriticas String?
+  recomendaciones     String?
+
+  agenteSanitario AgenteSanitario @relation(fields: [agenteSanitarioId], references: [id])
+  supervisor      Usuario         @relation(fields: [supervisorId], references: [id])
+  areaOperativa   AreaOperativa   @relation(fields: [areaOperativaId], references: [id])
+  sector          Sector          @relation(fields: [sectorId], references: [id])
+
+  evaluaciones EvaluacionCriterio[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agenteSanitarioId])
+  @@index([supervisorId])
+  @@index([areaOperativaId])
+  @@index([sectorId])
+  @@index([fecha])
+}
+
+model EvaluacionCriterio {
+  id            Int @id @default(autoincrement())
+  supervisionId Int
+  criterioId    Int
+
+  criterioNombre      String
+  criterioDescripcion String?
+  puntuacion          Int
+
+  supervision Supervision        @relation(fields: [supervisionId], references: [id], onDelete: Cascade)
+  criterio    CriterioEvaluacion @relation(fields: [criterioId], references: [id])
+
+  @@unique([supervisionId, criterioId])
+  @@index([criterioId])
+}
