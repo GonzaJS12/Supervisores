@@ -35,7 +35,7 @@ const bloques = [
     ],
   },
   {
-    nombre: 'AORDAJE FAMILIA Y COMUNITARIO',
+    nombre: 'ABORDAJE FAMILIA Y COMUNITARIO',
     descripcion: 'Evaluación del abordaje de las familias y de las problemáticas comunitarias.',
     orden: 4,
     criterios: [

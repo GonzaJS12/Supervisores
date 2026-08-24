@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CrearUsuarioDto } from './dto/crear-usuario.dto';
@@ -55,6 +55,43 @@ export class UsuariosService {
       },
       orderBy: {
         apellido: 'asc',
+      },
+    });
+  }
+  async cambiarPassword(
+    usuarioId: number,
+    nuevaPassword: string,) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: {
+        id: usuarioId,
+      },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException(
+        'El usuario no existe',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(
+      nuevaPassword,
+      10,
+    );
+
+    return this.prisma.usuario.update({
+      where: {
+        id: usuarioId,
+      },
+      data: {
+        passwordHash,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        email: true,
+        rol: true,
+        activo: true,
       },
     });
   }
