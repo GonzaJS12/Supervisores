@@ -1,7 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException,ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CrearUsuarioDto } from './dto/crear-usuario.dto';
+import { RolUsuario } from '@prisma/client';
 
 @Injectable()
 export class UsuariosService {
@@ -58,6 +59,68 @@ export class UsuariosService {
       },
     });
   }
+  async buscarPorId(id: number) {
+    const usuario =
+      await this.prisma.usuario.findUnique({
+        where: {
+          id,
+        },
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          email: true,
+          rol: true,
+          activo: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+    if (!usuario) {
+      throw new NotFoundException(
+        'Usuario no encontrado',
+      );
+    }
+
+    return usuario;
+  }
+  async cambiarEstado(
+    id: number,
+    activo: boolean,
+  ) {
+    const usuario =
+      await this.prisma.usuario.findUnique({
+        where: {
+          id,
+        },
+      });
+
+    if (!usuario) {
+      throw new NotFoundException(
+        'Usuario no encontrado',
+      );
+    }
+
+    return this.prisma.usuario.update({
+      where: {
+        id,
+      },
+      data: {
+        activo,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        email: true,
+        rol: true,
+        activo: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
   async cambiarPassword(
     usuarioId: number,
     nuevaPassword: string,) {
@@ -95,4 +158,59 @@ export class UsuariosService {
       },
     });
   }
+  async cambiarRol(
+    usuarioId: number,
+    nuevoRol: RolUsuario,
+    administradorId: number,
+  ) {
+  const usuario =
+    await this.prisma.usuario.findUnique({
+      where: {
+        id: usuarioId,
+      },
+    });
+
+  if (!usuario) {
+    throw new NotFoundException(
+      'Usuario no encontrado',
+    );
+  }
+
+  if (
+    usuarioId === administradorId
+  ) {
+    throw new BadRequestException(
+      'No puede modificar su propio rol',
+    );
+  }
+
+  if (
+    usuario.rol === nuevoRol
+  ) {
+    throw new BadRequestException(
+      'El usuario ya posee ese rol',
+    );
+  }
+
+  return this.prisma.usuario.update({
+    where: {
+      id: usuarioId,
+    },
+
+    data: {
+      rol: nuevoRol,
+    },
+
+    select: {
+      id: true,
+      nombre: true,
+      apellido: true,
+      email: true,
+      rol: true,
+      activo: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
 }
