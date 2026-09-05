@@ -52,12 +52,7 @@ function App() {
               path="/agentes/:id"
               element={<DetalleAgentePage />}
             />
-
-            <Route
-              path="/supervisiones"
-              element={<SupervisionesPage />}
-            />
-
+            
             <Route
               path="/supervisiones/nueva"
               element={<NuevaSupervisionPage />}
@@ -66,6 +61,10 @@ function App() {
             <Route
               path="/supervisiones/:id"
               element={<DetalleSupervisionPage />}
+            />
+            <Route
+              path="/supervisiones"
+              element={<SupervisionesPage />}
             />
 
             {/* SOLO ADMIN */}

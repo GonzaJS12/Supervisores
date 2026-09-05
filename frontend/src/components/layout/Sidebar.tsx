@@ -60,13 +60,9 @@ export default function Sidebar({
           <div className="flex h-16 items-center justify-between border-b border-slate-800 px-6">
 
             <div>
-              <h1 className="text-lg font-bold">
-                Supervisión
-              </h1>
-
-              <p className="text-xs text-slate-400">
-                Sanitaria
-              </p>
+              <h2 className="text-lg font-bold">
+                Supervisión Sanitaria
+              </h2>
             </div>
 
             <button
@@ -102,7 +98,9 @@ export default function Sidebar({
               onClick={cerrar}
               className={linkClass}
             >
-              Supervisiones
+              {esAdmin
+                ? 'Todas las supervisiones'
+                : 'Mis supervisiones'}
             </NavLink>
 
             <NavLink

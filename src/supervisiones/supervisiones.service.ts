@@ -1,5 +1,5 @@
 import {  BadRequestException, Injectable,  NotFoundException} from '@nestjs/common';
-import {  Clasificacion, Prisma } from '@prisma/client';
+import {  Clasificacion, Prisma ,RolUsuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrearSupervisionDto } from './dto/crear-supervision.dto';
 
@@ -56,9 +56,15 @@ export class SupervisionesService {
         },
       });
 
-    if (!agente || !agente.activo) {
+    if (!agente) {
       throw new NotFoundException(
-        'El agente sanitario no existe o está inactivo',
+        'El agente sanitario no existe',
+      );
+    }
+
+    if (!agente.activo) {
+      throw new BadRequestException(
+        'No se puede crear una supervisión para un agente inactivo',
       );
     }
 
@@ -363,11 +369,71 @@ export class SupervisionesService {
       },
     });
   }
-  async buscarPorId(id: number) {
+  async listarPorSupervisor(
+    supervisorId: number,
+  ) {
+    return this.prisma.supervision.findMany({
+      where: {
+        supervisorId,
+      },
+
+      orderBy: {
+        fecha: 'desc',
+      },
+
+      include: {
+        agenteSanitario: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            documento: true,
+            legajo: true,
+          },
+        },
+
+        supervisor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            email: true,
+          },
+        },
+
+        areaOperativa: {
+          select: {
+            id: true,
+            nombre: true,
+          },
+        },
+
+        sector: {
+          select: {
+            id: true,
+            nombre: true,
+          },
+        },
+      },
+    });
+  }
+  async buscarPorIdParaUsuario(
+    id: number,
+    usuarioId: number,
+    rol: RolUsuario,
+  ) {
     const supervision =
-      await this.prisma.supervision.findUnique({
+      await this.prisma.supervision.findFirst({
         where: {
           id,
+
+          ...(rol ===
+          RolUsuario.SUPERVISOR
+            ? {
+                supervisorId:
+                  usuarioId,
+              }
+            : {}),
         },
 
         include: {
@@ -383,7 +449,9 @@ export class SupervisionesService {
           },
 
           areaOperativa: true,
+
           sector: true,
+
           evaluaciones: {
             orderBy: {
               id: 'asc',
@@ -394,9 +462,10 @@ export class SupervisionesService {
 
     if (!supervision) {
       throw new NotFoundException(
-        'La supervisión no existe',
+        'La supervisión no existe o no tiene acceso a ella',
       );
     }
+
     return supervision;
   }
   async listarPorAgente(
@@ -446,4 +515,284 @@ export class SupervisionesService {
       },
     });
   }
+  async obtenerMetricasSupervisor(
+    supervisorId: number,
+  ) {
+    const ahora = new Date();
+
+    const inicioMes = new Date(
+      ahora.getFullYear(),
+      ahora.getMonth(),
+      1,
+    );
+
+    const [
+      totalSupervisiones,
+      supervisionesMes,
+      promedio,
+      porClasificacion,
+      ultimasSupervisiones,
+    ] = await Promise.all([
+      this.prisma.supervision.count({
+        where: {
+          supervisorId,
+        },
+      }),
+
+      this.prisma.supervision.count({
+        where: {
+          supervisorId,
+
+          fecha: {
+            gte: inicioMes,
+          },
+        },
+      }),
+
+      this.prisma.supervision.aggregate({
+        where: {
+          supervisorId,
+        },
+
+        _avg: {
+          promedio: true,
+        },
+      }),
+
+      this.prisma.supervision.groupBy({
+        by: [
+          'clasificacion',
+        ],
+
+        where: {
+          supervisorId,
+        },
+
+        _count: {
+          _all: true,
+        },
+      }),
+
+      this.prisma.supervision.findMany({
+        where: {
+          supervisorId,
+        },
+
+        take: 5,
+
+        orderBy: {
+          fecha: 'desc',
+        },
+
+        include: {
+          agenteSanitario: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+            },
+          },
+
+          areaOperativa: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+
+          sector: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      totalSupervisiones,
+
+      supervisionesMes,
+
+      promedioGeneral:
+        promedio._avg.promedio
+          ? Number(
+              promedio._avg.promedio,
+            )
+          : null,
+
+      clasificaciones: {
+        CRITICO:
+          obtenerCantidadClasificacion(
+            porClasificacion,
+            Clasificacion.CRITICO,
+          ),
+
+        REGULAR:
+          obtenerCantidadClasificacion(
+            porClasificacion,
+            Clasificacion.REGULAR,
+          ),
+
+        BUENO:
+          obtenerCantidadClasificacion(
+            porClasificacion,
+            Clasificacion.BUENO,
+          ),
+
+        EXCELENTE:
+          obtenerCantidadClasificacion(
+            porClasificacion,
+            Clasificacion.EXCELENTE,
+          ),
+      },
+
+      ultimasSupervisiones,
+    };
+  }
+  async obtenerMetricasGlobales() {
+    const ahora = new Date();
+
+    const inicioMes = new Date(
+      ahora.getFullYear(),
+      ahora.getMonth(),
+      1,
+    );
+
+    const [
+      totalSupervisiones,
+      supervisionesMes,
+      promedio,
+      porClasificacion,
+      ultimasSupervisiones,
+    ] = await Promise.all([
+      this.prisma.supervision.count(),
+
+      this.prisma.supervision.count({
+        where: {
+          fecha: {
+            gte: inicioMes,
+          },
+        },
+      }),
+
+      this.prisma.supervision.aggregate({
+        _avg: {
+          promedio: true,
+        },
+      }),
+
+      this.prisma.supervision.groupBy({
+        by: [
+          'clasificacion',
+        ],
+
+        _count: {
+          _all: true,
+        },
+      }),
+
+      this.prisma.supervision.findMany({
+        take: 5,
+
+        orderBy: {
+          fecha: 'desc',
+        },
+
+        include: {
+          agenteSanitario: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+            },
+          },
+
+          supervisor: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+            },
+          },
+
+          areaOperativa: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+
+          sector: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      totalSupervisiones,
+
+      supervisionesMes,
+
+      promedioGeneral:
+        promedio._avg.promedio
+          ? Number(
+              promedio._avg.promedio,
+            )
+          : null,
+
+      clasificaciones: {
+        CRITICO:
+          obtenerCantidadClasificacion(
+            porClasificacion,
+            Clasificacion.CRITICO,
+          ),
+
+        REGULAR:
+          obtenerCantidadClasificacion(
+            porClasificacion,
+            Clasificacion.REGULAR,
+          ),
+
+        BUENO:
+          obtenerCantidadClasificacion(
+            porClasificacion,
+            Clasificacion.BUENO,
+          ),
+
+        EXCELENTE:
+          obtenerCantidadClasificacion(
+            porClasificacion,
+            Clasificacion.EXCELENTE,
+          ),
+      },
+
+      ultimasSupervisiones,
+    };
+  }
+}
+function obtenerCantidadClasificacion(
+  datos: {
+    clasificacion:
+      Clasificacion | null;
+
+    _count: {
+      _all: number;
+    };
+  }[],
+  clasificacion:
+    Clasificacion,
+): number {
+  return (
+    datos.find(
+      item =>
+        item.clasificacion ===
+        clasificacion,
+    )?._count._all ?? 0
+  );
 }

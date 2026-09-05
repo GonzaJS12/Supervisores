@@ -23,3 +23,10 @@ export interface CrearAgenteRequest {
   legajo?: string;
   areaOperativaId: number;
 }
+export interface ActualizarAgenteRequest {
+  nombre?: string;
+  apellido?: string;
+  documento?: string;
+  legajo?: string;
+  areaOperativaId?: number;
+}

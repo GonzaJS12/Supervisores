@@ -112,7 +112,7 @@ export default function NuevaSupervisionPage() {
           obtenerBloquesEvaluacion(),
         ]);
 
-        setAgentes(agentesData);
+        setAgentes(agentesData.filter((agente)=>agente.activo));
 
         setBloques(
           bloquesData
@@ -255,6 +255,11 @@ export default function NuevaSupervisionPage() {
       return;
     }
 
+    if (!agenteSeleccionado.activo){setError(
+      'No se puede crear una supervision para un agente inactivo');
+      return;
+    }
+
     if (!sectorId) {
       setError(
         'Debe seleccionar un sector.',
@@ -328,14 +333,29 @@ export default function NuevaSupervisionPage() {
       });
 
       navigate('/supervisiones');
-    } catch (error) {
+    } catch (error:any) {
       console.error(error);
 
-      setError(
-        'No se pudo guardar la supervisión.',
-      );
-    } finally {
-      setGuardando(false);
+      const mensajeBackend =
+        error.response?.data
+          ?.message;
+      
+      if (
+        Array.isArray(
+          mensajeBackend,
+        )
+      ){
+        setError(
+          mensajeBackend.join(
+            ', ',
+          ),
+        );
+      } else{
+        setError(
+          mensajeBackend ||
+            'No se pudo guardar la supervision.',
+        );
+      }
     }
   };
 
