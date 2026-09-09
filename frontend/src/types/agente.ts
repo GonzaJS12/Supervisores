@@ -1,32 +1,37 @@
-export interface AreaOperativa {
+export interface AreaOperativaAgente {
   id: number;
+  externalAreaId?: number | null;
   nombre: string;
+}
+
+export interface SectorAgente {
+  id: number;
+  externalSectorId?: number | null;
+  numero: number;
+  nombre?: string | null;
 }
 
 export interface AgenteSanitario {
   id: number;
+
   areaOperativaId: number;
+  sectorId?: number | null;
+
+  externalUserId?: number | null;
+  externalUuid?: string | null;
+
   nombre: string;
   apellido: string;
+
   documento?: string | null;
   legajo?: string | null;
+  cobertura?: string | null;
+
   activo: boolean;
-  areaOperativa?: AreaOperativa;
+
+  areaOperativa?: AreaOperativaAgente;
+  sector?: SectorAgente | null;
+
   createdAt?: string;
   updatedAt?: string;
-}
-
-export interface CrearAgenteRequest {
-  nombre: string;
-  apellido: string;
-  documento?: string;
-  legajo?: string;
-  areaOperativaId: number;
-}
-export interface ActualizarAgenteRequest {
-  nombre?: string;
-  apellido?: string;
-  documento?: string;
-  legajo?: string;
-  areaOperativaId?: number;
 }

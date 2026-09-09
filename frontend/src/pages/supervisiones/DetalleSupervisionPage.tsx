@@ -156,11 +156,13 @@ export default function DetalleSupervisionPage() {
           <Dato
             label="Sector"
             valor={
-              supervision.sector.nombre ??
+              supervision.sector
+              ? supervision.sector.nombre ??
               `Sector ${
                 supervision.sector.numero ??
                 ''
               }`
+              : 'Sin sector asginado'
             }
           />
 
@@ -175,6 +177,7 @@ export default function DetalleSupervisionPage() {
           <Dato
             label="Ronda N°"
             valor={
+              supervision.ronda?.nombre ??
               supervision.rondaNumero?.toString() ??
               '-'
             }

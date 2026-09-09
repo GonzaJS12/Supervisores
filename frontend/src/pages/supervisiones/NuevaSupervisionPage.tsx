@@ -1,74 +1,71 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-
-import { useNavigate } from 'react-router-dom';
-
-import {
-  obtenerAgentes,
-} from '../../services/agentes.service';
-
-import {
-  obtenerSectoresPorArea,
-} from '../../services/sectores.service';
-
-import {
-  obtenerBloquesEvaluacion,
-} from '../../services/evaluaciones.service';
-
-import {
-  crearSupervision,
-} from '../../services/supervisiones.service';
-
-import type {
-  AgenteSanitario,
-} from '../../types/agente';
-
-import type {
-  Sector,
-  DecisionGestion,
-} from '../../types/supervision';
-
-import type {
-  BloqueEvaluacion,
-} from '../../types/evaluacion';
+import { useEffect, useMemo, useState } from 'react';
+import {  useNavigate } from 'react-router-dom';
+import { obtenerAgentesPorArea } from '../../services/agentes.service';
+import { obtenerAreasOperativas } from '../../services/areas-operativas.service';
+import { obtenerSectoresPorArea } from '../../services/sectores.service';
+import { obtenerRondas } from '../../services/rondas.service';
+import { obtenerBloquesEvaluacion } from '../../services/evaluaciones.service';
+import { crearSupervision } from '../../services/supervisiones.service';
+import type { AgenteSanitario } from '../../types/agente';
+import type { Sector, DecisionGestion } from '../../types/supervision';
+import type { Ronda } from '../../types/ronda';
+import type { BloqueEvaluacion } from '../../types/evaluacion';
+import type { AreaOperativa } from '../../services/areas-operativas.service';
 
 export default function NuevaSupervisionPage() {
   const navigate = useNavigate();
 
-  const [agentes, setAgentes] =
-    useState<AgenteSanitario[]>([]);
+  const [areas, setAreas] =
+    useState<AreaOperativa[]>([]);
 
   const [sectores, setSectores] =
     useState<Sector[]>([]);
 
+  const [agentes, setAgentes] =
+    useState<AgenteSanitario[]>([]);
+
+  const [rondas, setRondas] =
+    useState<Ronda[]>([]);
+
   const [bloques, setBloques] =
     useState<BloqueEvaluacion[]>([]);
 
-  const [agenteId, setAgenteId] =
+  const [areaId, setAreaId] =
     useState('');
 
   const [sectorId, setSectorId] =
     useState('');
 
+  const [agenteId, setAgenteId] =
+    useState('');
+
+  const [rondaId, setRondaId] =
+    useState('');
+
   const [fecha, setFecha] =
     useState(
-      new Date().toISOString().slice(0, 10),
+      new Date()
+        .toISOString()
+        .slice(0, 10),
     );
 
-  const [familiaNumero, setFamiliaNumero] =
-    useState('');
+  const [
+    familiaNumero,
+    setFamiliaNumero,
+  ] = useState('');
 
-  const [rondaNumero, setRondaNumero] =
-    useState('');
+  const [
+    decisionGestion,
+    setDecisionGestion,
+  ] =
+    useState<DecisionGestion>(
+      'NO_REQUIERE',
+    );
 
-  const [decisionGestion, setDecisionGestion] =
-    useState<DecisionGestion>('NO_REQUIERE');
-
-  const [fortalezas, setFortalezas] =
-    useState('');
+  const [
+    fortalezas,
+    setFortalezas,
+  ] = useState('');
 
   const [
     oportunidadesMejora,
@@ -88,276 +85,577 @@ export default function NuevaSupervisionPage() {
   const [
     puntuaciones,
     setPuntuaciones,
-  ] = useState<Record<number, number>>({});
+  ] =
+    useState<
+      Record<number, number>
+    >({});
 
-  const [cargando, setCargando] =
-    useState(true);
+  const [
+    cargando,
+    setCargando,
+  ] = useState(true);
 
-  const [guardando, setGuardando] =
-    useState(false);
+  const [
+    cargandoTerritorio,
+    setCargandoTerritorio,
+  ] = useState(false);
+
+  const [
+    guardando,
+    setGuardando,
+  ] = useState(false);
 
   const [error, setError] =
     useState('');
 
+  /*
+   * CARGA INICIAL
+   */
   useEffect(() => {
     const cargarDatos = async () => {
       try {
         setCargando(true);
 
         const [
-          agentesData,
+          areasData,
+          rondasData,
           bloquesData,
         ] = await Promise.all([
-          obtenerAgentes(),
+          obtenerAreasOperativas(),
+          obtenerRondas(),
           obtenerBloquesEvaluacion(),
         ]);
 
-        setAgentes(agentesData.filter((agente)=>agente.activo));
+        setAreas(
+          areasData.filter(
+            (area) =>
+              area.activo,
+          ),
+        );
+
+        setRondas(
+          rondasData.filter(
+            (ronda) =>
+              ronda.activo,
+          ),
+        );
 
         setBloques(
           bloquesData
-            .filter((bloque) => bloque.activo)
-            .map((bloque) => ({
-              ...bloque,
-              criterios:
-                bloque.criterios.filter(
-                  (criterio) =>
-                    criterio.activo,
-                ),
-            })),
+            .filter(
+              (bloque) =>
+                bloque.activo,
+            )
+            .map(
+              (bloque) => ({
+                ...bloque,
+
+                criterios:
+                  bloque.criterios.filter(
+                    (
+                      criterio,
+                    ) =>
+                      criterio.activo,
+                  ),
+              }),
+            ),
         );
       } catch (error) {
-        console.error(error);
+        console.error(
+          error,
+        );
 
         setError(
           'No se pudieron cargar los datos del formulario.',
         );
       } finally {
-        setCargando(false);
+        setCargando(
+          false,
+        );
       }
     };
 
     cargarDatos();
   }, []);
 
-  const agenteSeleccionado = useMemo(
-    () =>
-      agentes.find(
-        (agente) =>
-          agente.id === Number(agenteId),
-      ),
-    [agentes, agenteId],
-  );
-
+  /*
+   * AL CAMBIAR ÁREA
+   *
+   * cargamos sectores
+   * y agentes del área.
+   */
   useEffect(() => {
-    const cargarSectores = async () => {
-      if (!agenteSeleccionado) {
-        setSectores([]);
-        setSectorId('');
-        return;
-      }
+    const cargarPorArea =
+      async () => {
+        if (!areaId) {
+          setSectores([]);
+          setAgentes([]);
+          setSectorId('');
+          setAgenteId('');
+          return;
+        }
 
-      try {
-        const datos =
-          await obtenerSectoresPorArea(
-            agenteSeleccionado
-              .areaOperativaId,
+        try {
+          setCargandoTerritorio(
+            true,
           );
 
-        setSectores(datos);
-        setSectorId('');
-      } catch (error) {
-        console.error(error);
+          setSectorId('');
+          setAgenteId('');
 
-        setError(
-          'No se pudieron cargar los sectores.',
+          const [
+            sectoresData,
+            agentesData,
+          ] =
+            await Promise.all([
+              obtenerSectoresPorArea(
+                Number(areaId),
+              ),
+
+              obtenerAgentesPorArea(
+                Number(areaId),
+              ),
+            ]);
+
+          setSectores(
+            sectoresData.filter(
+              (sector) =>
+                sector.activo,
+            ),
+          );
+
+          setAgentes(
+            agentesData.filter(
+              (agente) =>
+                agente.activo,
+            ),
+          );
+        } catch (error) {
+          console.error(
+            error,
+          );
+
+          setError(
+            'No se pudieron cargar los sectores y agentes del área seleccionada.',
+          );
+        } finally {
+          setCargandoTerritorio(
+            false,
+          );
+        }
+      };
+
+    cargarPorArea();
+  }, [areaId]);
+
+  /*
+   * AGENTES FILTRADOS
+   *
+   * sectorId === ''
+   * muestra todos los agentes
+   * del área.
+   *
+   * sectorId === 'SIN_SECTOR'
+   * muestra únicamente agentes
+   * con sectorId = null.
+   *
+   * cualquier otro valor
+   * filtra por sector.
+   */
+  const agentesFiltrados =
+    useMemo(() => {
+      if (!sectorId) {
+        return agentes;
+      }
+
+      if (
+        sectorId ===
+        'SIN_SECTOR'
+      ) {
+        return agentes.filter(
+          (agente) =>
+            agente.sectorId ==
+            null,
         );
       }
-    };
 
-    cargarSectores();
-  }, [agenteSeleccionado]);
+      return agentes.filter(
+        (agente) =>
+          agente.sectorId ===
+          Number(
+            sectorId,
+          ),
+      );
+    }, [
+      agentes,
+      sectorId,
+    ]);
+  /*
+   * CANTIDAD DE AGENTES
+  * POR SECTOR
+  *
+  * Se calcula únicamente con
+  * agentes activos del área
+  * actualmente seleccionada.
+  */
+  const cantidadAgentesPorSector =
+      useMemo(() => {
+      const cantidades:
+        Record<number, number> = {};
+
+      agentes.forEach(
+        (agente) => {
+          if (
+            agente.sectorId ==
+            null
+          ) {
+            return;
+          }
+
+          cantidades[
+            agente.sectorId
+          ] =
+            (cantidades[
+              agente.sectorId
+            ] ?? 0) + 1;
+        },
+      );
+
+      return cantidades;
+    }, [agentes]);
+
+  const cantidadSinSector =
+    useMemo(
+      () =>
+        agentes.filter(
+          (agente) =>
+            agente.sectorId ==
+            null,
+        ).length,
+      [agentes],
+    );
+
+  /*
+   * Si cambia el filtro
+   * de sector, limpiamos
+   * el agente seleccionado.
+   */
+  useEffect(() => {
+    setAgenteId('');
+  }, [sectorId]);
+
+  const agenteSeleccionado =
+    useMemo(
+      () =>
+        agentes.find(
+          (agente) =>
+            agente.id ===
+            Number(
+              agenteId,
+            ),
+        ),
+      [
+        agentes,
+        agenteId,
+      ],
+    );
+
+  /*
+   * Si elegimos agente,
+   * sincronizamos el sector
+   * automáticamente.
+   *
+   * Esto evita elegir un
+   * sector que no corresponda
+   * al agente.
+   */
+  useEffect(() => {
+    if (
+      !agenteSeleccionado
+    ) {
+      return;
+    }
+
+    if (
+      agenteSeleccionado
+        .sectorId == null
+    ) {
+      setSectorId(
+        'SIN_SECTOR',
+      );
+
+      return;
+    }
+
+    setSectorId(
+      String(
+        agenteSeleccionado
+          .sectorId,
+      ),
+    );
+  }, [
+    agenteSeleccionado,
+  ]);
 
   const criteriosActivos =
     bloques.flatMap(
-      (bloque) => bloque.criterios,
+      (bloque) =>
+        bloque.criterios,
     );
 
   const formularioCompleto =
-    criteriosActivos.length > 0 &&
+    criteriosActivos.length >
+      0 &&
     criteriosActivos.every(
       (criterio) =>
-        puntuaciones[criterio.id] !==
-        undefined,
+        puntuaciones[
+          criterio.id
+        ] !== undefined,
     );
 
-  const promedio = useMemo(() => {
-    const valores =
-      Object.values(puntuaciones);
+  const promedio =
+    useMemo(() => {
+      const valores =
+        Object.values(
+          puntuaciones,
+        );
 
-    if (valores.length === 0) {
-      return null;
-    }
+      if (
+        valores.length === 0
+      ) {
+        return null;
+      }
 
-    const suma =
-      valores.reduce(
-        (total, valor) =>
-          total + valor,
-        0,
+      const suma =
+        valores.reduce(
+          (
+            total,
+            valor,
+          ) =>
+            total +
+            valor,
+          0,
+        );
+
+      return Number(
+        (
+          suma /
+          valores.length
+        ).toFixed(2),
       );
+    }, [
+      puntuaciones,
+    ]);
 
-    return Number(
-      (suma / valores.length).toFixed(2),
-    );
-  }, [puntuaciones]);
+  const clasificacion =
+    useMemo(() => {
+      if (
+        promedio === null
+      ) {
+        return '';
+      }
 
-  const clasificacion = useMemo(() => {
-    if (promedio === null) {
-      return '';
-    }
+      if (
+        promedio <= 2.5
+      ) {
+        return 'CRITICO';
+      }
 
-    if (promedio <= 2.5) {
-      return 'CRITICO';
-    }
+      if (
+        promedio <= 3.5
+      ) {
+        return 'REGULAR';
+      }
 
-    if (promedio <= 3.5) {
-      return 'REGULAR';
-    }
+      if (
+        promedio <= 4.5
+      ) {
+        return 'BUENO';
+      }
 
-    if (promedio <= 4.5) {
-      return 'BUENO';
-    }
-
-    return 'EXCELENTE';
-  }, [promedio]);
+      return 'EXCELENTE';
+    }, [
+      promedio,
+    ]);
 
   const handlePuntuacion = (
     criterioId: number,
     puntuacion: number,
   ) => {
-    setPuntuaciones((anterior) => ({
-      ...anterior,
-      [criterioId]: puntuacion,
-    }));
+    setPuntuaciones(
+      (
+        anterior,
+      ) => ({
+        ...anterior,
+
+        [criterioId]:
+          puntuacion,
+      }),
+    );
   };
 
-  const handleSubmit = async (
-    e: React.FormEvent,
-  ) => {
-    e.preventDefault();
+  const handleSubmit =
+    async (
+      e: React.FormEvent,
+    ) => {
+      e.preventDefault();
 
-    setError('');
+      setError('');
 
-    if (!agenteSeleccionado) {
-      setError(
-        'Debe seleccionar un agente sanitario.',
-      );
-      return;
-    }
-
-    if (!agenteSeleccionado.activo){setError(
-      'No se puede crear una supervision para un agente inactivo');
-      return;
-    }
-
-    if (!sectorId) {
-      setError(
-        'Debe seleccionar un sector.',
-      );
-      return;
-    }
-
-    if (!formularioCompleto) {
-      setError(
-        'Debe puntuar todos los criterios de evaluación.',
-      );
-      return;
-    }
-
-    try {
-      setGuardando(true);
-
-      await crearSupervision({
-        agenteSanitarioId:
-          agenteSeleccionado.id,
-
-        areaOperativaId:
-          agenteSeleccionado
-            .areaOperativaId,
-
-        sectorId:
-          Number(sectorId),
-
-        fecha: new Date(
-          `${fecha}T12:00:00`,
-        ).toISOString(),
-
-        familiaNumero:
-          familiaNumero
-            ? Number(familiaNumero)
-            : undefined,
-
-        rondaNumero:
-          rondaNumero
-            ? Number(rondaNumero)
-            : undefined,
-
-        decisionGestion,
-
-        fortalezas:
-          fortalezas || undefined,
-
-        oportunidadesMejora:
-          oportunidadesMejora ||
-          undefined,
-
-        situacionesCriticas:
-          situacionesCriticas ||
-          undefined,
-
-        recomendaciones:
-          recomendaciones ||
-          undefined,
-
-        evaluaciones:
-          criteriosActivos.map(
-            (criterio) => ({
-              criterioId:
-                criterio.id,
-              puntuacion:
-                puntuaciones[
-                  criterio.id
-                ],
-            }),
-          ),
-      });
-
-      navigate('/supervisiones');
-    } catch (error:any) {
-      console.error(error);
-
-      const mensajeBackend =
-        error.response?.data
-          ?.message;
-      
-      if (
-        Array.isArray(
-          mensajeBackend,
-        )
-      ){
+      if (!areaId) {
         setError(
-          mensajeBackend.join(
-            ', ',
-          ),
+          'Debe seleccionar un área operativa.',
         );
-      } else{
+
+        return;
+      }
+
+      if (
+        !agenteSeleccionado
+      ) {
         setError(
-          mensajeBackend ||
-            'No se pudo guardar la supervision.',
+          'Debe seleccionar un agente sanitario.',
+        );
+
+        return;
+      }
+
+      if (
+        !agenteSeleccionado.activo
+      ) {
+        setError(
+          'No se puede crear una supervisión para un agente inactivo.',
+        );
+
+        return;
+      }
+
+      if (!rondaId) {
+        setError(
+          'Debe seleccionar una ronda.',
+        );
+
+        return;
+      }
+
+      if (
+        !formularioCompleto
+      ) {
+        setError(
+          'Debe puntuar todos los criterios de evaluación.',
+        );
+
+        return;
+      }
+
+      try {
+        setGuardando(
+          true,
+        );
+
+        await crearSupervision({
+          agenteSanitarioId:
+            agenteSeleccionado.id,
+
+          areaOperativaId:
+            Number(areaId),
+
+          /*
+           * Si el agente no
+           * tiene sector,
+           * simplemente no
+           * enviamos sectorId.
+           */
+          sectorId:
+            agenteSeleccionado
+              .sectorId ??
+            undefined,
+
+          rondaId:
+            Number(rondaId),
+
+          fecha:
+            new Date(
+              `${fecha}T12:00:00`,
+            ).toISOString(),
+
+          familiaNumero:
+            familiaNumero
+              ? Number(
+                  familiaNumero,
+                )
+              : undefined,
+
+          decisionGestion,
+
+          fortalezas:
+            fortalezas ||
+            undefined,
+
+          oportunidadesMejora:
+            oportunidadesMejora ||
+            undefined,
+
+          situacionesCriticas:
+            situacionesCriticas ||
+            undefined,
+
+          recomendaciones:
+            recomendaciones ||
+            undefined,
+
+          evaluaciones:
+            criteriosActivos.map(
+              (
+                criterio,
+              ) => ({
+                criterioId:
+                  criterio.id,
+
+                puntuacion:
+                  puntuaciones[
+                    criterio.id
+                  ],
+              }),
+            ),
+        });
+
+        navigate(
+          '/supervisiones',
+        );
+      } catch (
+        error: any
+      ) {
+        console.error(
+          error,
+        );
+
+        const mensajeBackend =
+          error.response?.data
+            ?.message;
+
+        if (
+          Array.isArray(
+            mensajeBackend,
+          )
+        ) {
+          setError(
+            mensajeBackend.join(
+              ', ',
+            ),
+          );
+        } else {
+          setError(
+            mensajeBackend ||
+              'No se pudo guardar la supervisión.',
+          );
+        }
+      } finally {
+        setGuardando(
+          false,
         );
       }
-    }
-  };
+    };
 
   if (cargando) {
     return (
@@ -369,7 +667,9 @@ export default function NuevaSupervisionPage() {
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={
+        handleSubmit
+      }
       className="mx-auto max-w-6xl space-y-6"
     >
       <div>
@@ -388,7 +688,7 @@ export default function NuevaSupervisionPage() {
         </div>
       )}
 
-      {/* DATOS GENERALES */}
+      {/* IDENTIFICACIÓN */}
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-5 text-lg font-semibold text-slate-800">
@@ -398,54 +698,146 @@ export default function NuevaSupervisionPage() {
         <div className="grid gap-5 md:grid-cols-2">
 
           <CampoSelect
-            label="Agente sanitario"
-            value={agenteId}
-            onChange={setAgenteId}
+            label="Área operativa"
+            value={areaId}
+            onChange={
+              setAreaId
+            }
           >
             <option value="">
-              Seleccione un agente
+              Seleccione un área
             </option>
 
-            {agentes.map((agente) => (
-              <option
-                key={agente.id}
-                value={agente.id}
-              >
-                {agente.apellido},{' '}
-                {agente.nombre}
-              </option>
-            ))}
+            {areas.map(
+              (area) => (
+                <option
+                  key={
+                    area.id
+                  }
+                  value={
+                    area.id
+                  }
+                >
+                  {
+                    area.nombre
+                  }
+                </option>
+              ),
+            )}
           </CampoSelect>
-
-          <CampoTexto
-            label="Área operativa"
-            value={
-              agenteSeleccionado
-                ?.areaOperativa?.nombre ??
-              ''
-            }
-            readOnly
-          />
-
           <CampoSelect
             label="Sector"
             value={sectorId}
-            onChange={setSectorId}
-            disabled={!agenteSeleccionado}
-          >
+            onChange={
+              setSectorId
+            }
+            disabled={
+              !areaId ||
+              cargandoTerritorio
+            }
+>
             <option value="">
-              Seleccione un sector
+              Todos los sectores ({agentes.length} agentes)
             </option>
 
-            {sectores.map((sector) => (
-              <option
-                key={sector.id}
-                value={sector.id}
-              >
-                {sector.nombre ??
-                  `Sector ${sector.numero}`}
-              </option>
-            ))}
+            <option value="SIN_SECTOR">
+              Sin sector asignado ({cantidadSinSector}{' '}
+              {cantidadSinSector === 1
+                ? 'agente'
+                : 'agentes'})
+            </option>
+
+            {sectores.map(
+              (sector) => {
+                const cantidad =
+                  cantidadAgentesPorSector[
+                    sector.id
+                  ] ?? 0;
+
+                return (
+                  <option
+                    key={sector.id}
+                    value={sector.id}
+                  >
+                    {sector.nombre ??
+                      `Sector ${sector.numero}`}{' '}
+                    ({cantidad}{' '}
+                    {cantidad === 1
+                      ? 'agente'
+                      : 'agentes'})
+                  </option>
+                );
+              },
+            )}
+          </CampoSelect>
+
+          <CampoSelect
+            label="Agente sanitario"
+            value={agenteId}
+            onChange={
+              setAgenteId
+            }
+            disabled={
+              !areaId ||
+              cargandoTerritorio ||
+              agentesFiltrados.length === 0
+            }
+          >
+            <option value="">
+              {!areaId
+                ? 'Seleccione primero un área'
+                : cargandoTerritorio
+                  ? 'Cargando agentes...'
+                  : agentesFiltrados.length === 0
+                    ? 'No hay agentes asignados'
+                    : `Seleccione un agente (${agentesFiltrados.length} disponibles)`}
+            </option>
+
+            {agentesFiltrados.map(
+              (agente) => (
+                <option
+                  key={agente.id}
+                  value={agente.id}
+                >
+                  {agente.apellido},{' '}
+                  {agente.nombre}
+                  {agente.sectorId == null
+                    ? ' - Sin sector'
+                    : ''}
+                </option>
+              ),
+            )}
+          </CampoSelect>
+
+          <CampoSelect
+            label="Ronda"
+            value={rondaId}
+            onChange={
+              setRondaId
+            }
+          >
+            <option value="">
+              Seleccione una ronda
+            </option>
+
+            {rondas.map(
+              (
+                ronda,
+              ) => (
+                <option
+                  key={
+                    ronda.id
+                  }
+                  value={
+                    ronda.id
+                  }
+                >
+                  {
+                    ronda.nombre
+                  }
+                </option>
+              ),
+            )}
           </CampoSelect>
 
           <div>
@@ -455,9 +847,16 @@ export default function NuevaSupervisionPage() {
 
             <input
               type="date"
-              value={fecha}
-              onChange={(e) =>
-                setFecha(e.target.value)
+              value={
+                fecha
+              }
+              onChange={(
+                e,
+              ) =>
+                setFecha(
+                  e.target
+                    .value,
+                )
               }
               required
               className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
@@ -466,17 +865,38 @@ export default function NuevaSupervisionPage() {
 
           <CampoTexto
             label="Familia N°"
-            value={familiaNumero}
-            onChange={setFamiliaNumero}
+            value={
+              familiaNumero
+            }
+            onChange={
+              setFamiliaNumero
+            }
             type="number"
           />
 
-          <CampoTexto
-            label="Ronda N°"
-            value={rondaNumero}
-            onChange={setRondaNumero}
-            type="number"
-          />
+          {agenteSeleccionado && (
+            <>
+              <CampoTexto
+                label="Documento"
+                value={
+                  agenteSeleccionado
+                    .documento ??
+                  ''
+                }
+                readOnly
+              />
+
+              <CampoTexto
+                label="Cobertura"
+                value={
+                  agenteSeleccionado
+                    .cobertura ??
+                  ''
+                }
+                readOnly
+              />
+            </>
+          )}
 
         </div>
       </section>
@@ -490,63 +910,88 @@ export default function NuevaSupervisionPage() {
           </h2>
 
           <p className="text-sm text-slate-500">
-            1 = Muy deficiente · 2 = Deficiente ·
-            3 = Regular · 4 = Bueno ·
-            5 = Excelente
+            1 = Muy deficiente · 2 = Deficiente · 3 = Regular · 4 = Bueno · 5 = Excelente
           </p>
         </div>
 
-        {bloques.map((bloque) => (
-          <div
-            key={bloque.id}
-            className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <h3 className="mb-4 font-semibold text-slate-800">
-              {bloque.nombre}
-            </h3>
+        {bloques.map(
+          (
+            bloque,
+          ) => (
+            <div
+              key={
+                bloque.id
+              }
+              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <h3 className="mb-4 font-semibold text-slate-800">
+                {
+                  bloque.nombre
+                }
+              </h3>
 
-            <div className="divide-y divide-slate-100">
-              {bloque.criterios.map(
-                (criterio) => (
-                  <div
-                    key={criterio.id}
-                    className="py-4"
-                  >
-                    <p className="mb-3 text-sm font-medium text-slate-700">
-                      {criterio.nombre}
-                    </p>
+              <div className="divide-y divide-slate-100">
+                {bloque.criterios.map(
+                  (
+                    criterio,
+                  ) => (
+                    <div
+                      key={
+                        criterio.id
+                      }
+                      className="py-4"
+                    >
+                      <p className="mb-3 text-sm font-medium text-slate-700">
+                        {
+                          criterio.nombre
+                        }
+                      </p>
 
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map(
-                        (valor) => (
-                          <button
-                            key={valor}
-                            type="button"
-                            onClick={() =>
-                              handlePuntuacion(
-                                criterio.id,
-                                valor,
-                              )
-                            }
-                            className={`h-10 w-10 rounded-lg border text-sm font-semibold transition ${
-                              puntuaciones[
-                                criterio.id
-                              ] === valor
-                                ? 'border-blue-600 bg-blue-600 text-white'
-                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            {valor}
-                          </button>
-                        ),
-                      )}
+                      <div className="flex gap-2">
+                        {[
+                          1,
+                          2,
+                          3,
+                          4,
+                          5,
+                        ].map(
+                          (
+                            valor,
+                          ) => (
+                            <button
+                              key={
+                                valor
+                              }
+                              type="button"
+                              onClick={() =>
+                                handlePuntuacion(
+                                  criterio.id,
+                                  valor,
+                                )
+                              }
+                              className={`h-10 w-10 rounded-lg border text-sm font-semibold transition ${
+                                puntuaciones[
+                                  criterio.id
+                                ] ===
+                                valor
+                                  ? 'border-blue-600 bg-blue-600 text-white'
+                                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              {
+                                valor
+                              }
+                            </button>
+                          ),
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ),
-              )}
+                  ),
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ),
+        )}
       </section>
 
       {/* OBSERVACIONES */}
@@ -560,13 +1005,19 @@ export default function NuevaSupervisionPage() {
 
           <AreaTexto
             label="Fortalezas observadas"
-            value={fortalezas}
-            onChange={setFortalezas}
+            value={
+              fortalezas
+            }
+            onChange={
+              setFortalezas
+            }
           />
 
           <AreaTexto
             label="Oportunidades de mejora"
-            value={oportunidadesMejora}
+            value={
+              oportunidadesMejora
+            }
             onChange={
               setOportunidadesMejora
             }
@@ -574,7 +1025,9 @@ export default function NuevaSupervisionPage() {
 
           <AreaTexto
             label="Situaciones críticas detectadas"
-            value={situacionesCriticas}
+            value={
+              situacionesCriticas
+            }
             onChange={
               setSituacionesCriticas
             }
@@ -582,8 +1035,12 @@ export default function NuevaSupervisionPage() {
 
           <AreaTexto
             label="Recomendaciones"
-            value={recomendaciones}
-            onChange={setRecomendaciones}
+            value={
+              recomendaciones
+            }
+            onChange={
+              setRecomendaciones
+            }
           />
 
         </div>
@@ -601,8 +1058,12 @@ export default function NuevaSupervisionPage() {
         </label>
 
         <select
-          value={decisionGestion}
-          onChange={(e) =>
+          value={
+            decisionGestion
+          }
+          onChange={(
+            e,
+          ) =>
             setDecisionGestion(
               e.target
                 .value as DecisionGestion,
@@ -648,7 +1109,11 @@ export default function NuevaSupervisionPage() {
               </p>
 
               <p className="text-3xl font-bold text-slate-800">
-                {promedio.toFixed(2)}
+                {
+                  promedio.toFixed(
+                    2,
+                  )
+                }
               </p>
             </div>
 
@@ -658,7 +1123,9 @@ export default function NuevaSupervisionPage() {
               </p>
 
               <p className="text-xl font-bold text-slate-800">
-                {clasificacion}
+                {
+                  clasificacion
+                }
               </p>
             </div>
 
@@ -673,7 +1140,9 @@ export default function NuevaSupervisionPage() {
         <button
           type="button"
           onClick={() =>
-            navigate('/supervisiones')
+            navigate(
+              '/supervisiones',
+            )
           }
           className="rounded-lg border border-slate-300 px-5 py-2.5 font-semibold text-slate-700 hover:bg-slate-50"
         >
@@ -707,7 +1176,9 @@ function CampoTexto({
 }: {
   label: string;
   value: string;
-  onChange?: (value: string) => void;
+  onChange?: (
+    value: string,
+  ) => void;
   readOnly?: boolean;
   type?: string;
 }) {
@@ -720,10 +1191,22 @@ function CampoTexto({
       <input
         type={type}
         value={value}
-        readOnly={readOnly}
-        min={type === 'number' ? 1 : undefined}
-        onChange={(e) =>
-          onChange?.(e.target.value)
+        readOnly={
+          readOnly
+        }
+        min={
+          type ===
+          'number'
+            ? 1
+            : undefined
+        }
+        onChange={(
+          e,
+        ) =>
+          onChange?.(
+            e.target
+              .value,
+          )
         }
         className={`w-full rounded-lg border border-slate-300 px-3 py-2.5 ${
           readOnly
@@ -744,8 +1227,11 @@ function CampoSelect({
 }: {
   label: string;
   value: string;
-  onChange: (value: string) => void;
-  children: React.ReactNode;
+  onChange: (
+    value: string,
+  ) => void;
+  children:
+    React.ReactNode;
   disabled?: boolean;
 }) {
   return (
@@ -755,10 +1241,19 @@ function CampoSelect({
       </label>
 
       <select
-        value={value}
-        disabled={disabled}
-        onChange={(e) =>
-          onChange(e.target.value)
+        value={
+          value
+        }
+        disabled={
+          disabled
+        }
+        onChange={(
+          e,
+        ) =>
+          onChange(
+            e.target
+              .value,
+          )
         }
         className="w-full rounded-lg border border-slate-300 px-3 py-2.5 disabled:bg-slate-100"
       >
@@ -775,7 +1270,9 @@ function AreaTexto({
 }: {
   label: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (
+    value: string,
+  ) => void;
 }) {
   return (
     <div>
@@ -785,9 +1282,16 @@ function AreaTexto({
 
       <textarea
         rows={4}
-        value={value}
-        onChange={(e) =>
-          onChange(e.target.value)
+        value={
+          value
+        }
+        onChange={(
+          e,
+        ) =>
+          onChange(
+            e.target
+              .value,
+          )
         }
         className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
       />

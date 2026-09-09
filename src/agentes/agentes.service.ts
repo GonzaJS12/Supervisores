@@ -1,93 +1,36 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-
-import {
-  PrismaService,
-} from '../prisma/prisma.service';
-
-import {
-  CrearAgenteDto,
-} from './dto/crear-agente.dto';
-
-import {
-  ActualizarAgenteDto,
-} from './dto/actualizar-agente.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AgentesService {
   constructor(
-    private readonly prisma:
-      PrismaService,
+    private readonly prisma: PrismaService,
   ) {}
-
-  /*
-   * CREAR
-   */
-
-  async crear(
-    dto: CrearAgenteDto,
-  ) {
-    const area =
-      await this.prisma.areaOperativa.findUnique({
-        where: {
-          id: dto.areaOperativaId,
-        },
-      });
-
-    if (
-      !area ||
-      !area.activo
-    ) {
-      throw new NotFoundException(
-        'El área operativa no existe o está inactiva',
-      );
-    }
-
-    return this.prisma.agenteSanitario.create({
-      data: {
-        nombre:
-          dto.nombre,
-
-        apellido:
-          dto.apellido,
-
-        documento:
-          dto.documento,
-
-        legajo:
-          dto.legajo,
-
-        areaOperativaId:
-          dto.areaOperativaId,
-      },
-
-      include: {
-        areaOperativa: {
-          select: {
-            id: true,
-            nombre: true,
-          },
-        },
-      },
-    });
-  }
 
   /*
    * LISTAR TODOS
    *
-   * Incluimos activos e inactivos
-   * para que posteriormente podamos
-   * reactivar un agente.
+   * Incluye activos e inactivos.
+   *
+   * También devuelve el área y el sector
+   * actualmente asociados al agente.
    */
-
   async listar() {
     return this.prisma.agenteSanitario.findMany({
       include: {
         areaOperativa: {
           select: {
             id: true,
+            externalAreaId: true,
+            nombre: true,
+          },
+        },
+
+        sector: {
+          select: {
+            id: true,
+            externalSectorId: true,
+            numero: true,
             nombre: true,
           },
         },
@@ -108,12 +51,9 @@ export class AgentesService {
   }
 
   /*
-   * BUSCAR POR ID
+   * BUSCAR POR ID LOCAL
    */
-
-  async buscarPorId(
-    id: number,
-  ) {
+  async buscarPorId(id: number) {
     const agente =
       await this.prisma.agenteSanitario.findUnique({
         where: {
@@ -124,6 +64,16 @@ export class AgentesService {
           areaOperativa: {
             select: {
               id: true,
+              externalAreaId: true,
+              nombre: true,
+            },
+          },
+
+          sector: {
+            select: {
+              id: true,
+              externalSectorId: true,
+              numero: true,
               nombre: true,
             },
           },
@@ -140,16 +90,11 @@ export class AgentesService {
   }
 
   /*
-   * LISTAR POR ÁREA
+   * LISTAR AGENTES ACTIVOS POR ÁREA
    *
-   * Acá sí mantenemos activo:true.
-   *
-   * Esto evita que un agente dado
-   * de baja aparezca en selectores
-   * utilizados para nuevas
-   * supervisiones.
+   * El areaOperativaId recibido es siempre
+   * nuestro ID local de PostgreSQL.
    */
-
   async listarPorArea(
     areaOperativaId: number,
   ) {
@@ -160,10 +105,7 @@ export class AgentesService {
         },
       });
 
-    if (
-      !area ||
-      !area.activo
-    ) {
+    if (!area || !area.activo) {
       throw new NotFoundException(
         'El área operativa no existe o está inactiva',
       );
@@ -175,6 +117,17 @@ export class AgentesService {
         activo: true,
       },
 
+      include: {
+        sector: {
+          select: {
+            id: true,
+            externalSectorId: true,
+            numero: true,
+            nombre: true,
+          },
+        },
+      },
+
       orderBy: [
         {
           apellido: 'asc',
@@ -183,155 +136,6 @@ export class AgentesService {
           nombre: 'asc',
         },
       ],
-    });
-  }
-
-  /*
-   * ACTUALIZAR DATOS
-   */
-
-  async actualizar(
-    id: number,
-    dto: ActualizarAgenteDto,
-  ) {
-    const agente =
-      await this.prisma.agenteSanitario.findUnique({
-        where: {
-          id,
-        },
-      });
-
-    if (!agente) {
-      throw new NotFoundException(
-        'El agente sanitario no existe',
-      );
-    }
-
-    /*
-     * Si cambia el área,
-     * verificamos que exista
-     * y esté activa.
-     */
-
-    if (
-      dto.areaOperativaId !==
-      undefined
-    ) {
-      const area =
-        await this.prisma.areaOperativa.findUnique({
-          where: {
-            id:
-              dto.areaOperativaId,
-          },
-        });
-
-      if (
-        !area ||
-        !area.activo
-      ) {
-        throw new NotFoundException(
-          'El área operativa no existe o está inactiva',
-        );
-      }
-    }
-
-    return this.prisma.agenteSanitario.update({
-      where: {
-        id,
-      },
-
-      data: {
-        nombre:
-          dto.nombre,
-
-        apellido:
-          dto.apellido,
-
-        documento:
-          dto.documento,
-
-        legajo:
-          dto.legajo,
-
-        areaOperativaId:
-          dto.areaOperativaId,
-      },
-
-      include: {
-        areaOperativa: {
-          select: {
-            id: true,
-            nombre: true,
-          },
-        },
-      },
-    });
-  }
-
-  /*
-   * ACTIVAR / DESACTIVAR
-   */
-
-  async cambiarEstado(
-    id: number,
-    activo: boolean,
-  ) {
-    const agente =
-      await this.prisma.agenteSanitario.findUnique({
-        where: {
-          id,
-        },
-      });
-
-    if (!agente) {
-      throw new NotFoundException(
-        'El agente sanitario no existe',
-      );
-    }
-
-    /*
-     * Si queremos ACTIVAR
-     * nuevamente al agente,
-     * comprobamos que su área
-     * operativa siga activa.
-     */
-
-    if (activo) {
-      const area =
-        await this.prisma.areaOperativa.findUnique({
-          where: {
-            id:
-              agente.areaOperativaId,
-          },
-        });
-
-      if (
-        !area ||
-        !area.activo
-      ) {
-        throw new NotFoundException(
-          'No se puede activar el agente porque su área operativa no existe o está inactiva',
-        );
-      }
-    }
-
-    return this.prisma.agenteSanitario.update({
-      where: {
-        id,
-      },
-
-      data: {
-        activo,
-      },
-
-      include: {
-        areaOperativa: {
-          select: {
-            id: true,
-            nombre: true,
-          },
-        },
-      },
     });
   }
 }

@@ -183,38 +183,28 @@ model CriterioEvaluacion {
 }
 
 model Supervision {
-  id                Int @id @default(autoincrement())
-  agenteSanitarioId Int
-  supervisorId      Int
-  areaOperativaId   Int
-  sectorId          Int
-
-  rondaId Int?
-
-  fecha         DateTime
-  familiaNumero Int?
-
-  rondaNumero Int?
-
-  decisionGestion DecisionGestion
-
-  promedio      Decimal?       @db.Decimal(4, 2)
-  clasificacion Clasificacion?
-
+  id                  Int             @id @default(autoincrement())
+  agenteSanitarioId   Int
+  supervisorId        Int
+  areaOperativaId     Int
+  sectorId            Int?
+  rondaId             Int?
+  fecha               DateTime
+  familiaNumero       Int?
+  rondaNumero         Int?
+  decisionGestion     DecisionGestion
+  promedio            Decimal?        @db.Decimal(4, 2)
+  clasificacion       Clasificacion?
   fortalezas          String?
   oportunidadesMejora String?
   situacionesCriticas String?
   recomendaciones     String?
 
   agenteSanitario AgenteSanitario @relation(fields: [agenteSanitarioId], references: [id])
-
-  supervisor Usuario @relation(fields: [supervisorId], references: [id])
-
-  areaOperativa AreaOperativa @relation(fields: [areaOperativaId], references: [id])
-
-  sector Sector @relation(fields: [sectorId], references: [id])
-
-  ronda Ronda? @relation(fields: [rondaId], references: [id])
+  supervisor      Usuario         @relation(fields: [supervisorId], references: [id])
+  areaOperativa   AreaOperativa   @relation(fields: [areaOperativaId], references: [id])
+  sector          Sector?         @relation(fields: [sectorId], references: [id])
+  ronda           Ronda?          @relation(fields: [rondaId], references: [id])
 
   evaluaciones EvaluacionCriterio[]
 

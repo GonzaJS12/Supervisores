@@ -1,14 +1,19 @@
-import {  BadRequestException, Injectable,  NotFoundException} from '@nestjs/common';
-import {  Clasificacion, Prisma ,RolUsuario } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Clasificacion, Prisma, RolUsuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrearSupervisionDto } from './dto/crear-supervision.dto';
 
 @Injectable()
 export class SupervisionesService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma:
+      PrismaService,
   ) {}
 
+  /*
+   * Calcula la clasificación
+   * según el promedio obtenido.
+   */
   private calcularClasificacion(
     promedio: number,
   ): Clasificacion {
@@ -27,6 +32,9 @@ export class SupervisionesService {
     return Clasificacion.EXCELENTE;
   }
 
+  /*
+   * CREAR SUPERVISIÓN
+   */
   async crear(
     dto: CrearSupervisionDto,
     supervisorId: number,
@@ -34,13 +42,17 @@ export class SupervisionesService {
     /*
      * 1. Verificar supervisor
      */
-    const supervisor = await this.prisma.usuario.findUnique({
-      where: {
-        id: supervisorId,
-      },
-    });
+    const supervisor =
+      await this.prisma.usuario.findUnique({
+        where: {
+          id: supervisorId,
+        },
+      });
 
-    if (!supervisor || !supervisor.activo) {
+    if (
+      !supervisor ||
+      !supervisor.activo
+    ) {
       throw new NotFoundException(
         'El supervisor no existe o está inactivo',
       );
@@ -78,14 +90,18 @@ export class SupervisionesService {
         },
       });
 
-    if (!area || !area.activo) {
+    if (
+      !area ||
+      !area.activo
+    ) {
       throw new NotFoundException(
         'El área operativa no existe o está inactiva',
       );
     }
 
     /*
-     * 4. Verificar que el agente pertenezca al área
+     * 4. Verificar que el agente
+     * pertenezca al área enviada.
      */
     if (
       agente.areaOperativaId !==
@@ -97,35 +113,95 @@ export class SupervisionesService {
     }
 
     /*
-     * 5. Verificar sector
+     * 5. Verificar ronda
      */
-    const sector =
-      await this.prisma.sector.findUnique({
+    const ronda =
+      await this.prisma.ronda.findUnique({
         where: {
-          id: dto.sectorId,
+          id: dto.rondaId,
         },
       });
 
-    if (!sector || !sector.activo) {
-      throw new NotFoundException(
-        'El sector no existe o está inactivo',
-      );
-    }
-
-    /*
-     * 6. Verificar que el sector pertenezca al área
-     */
     if (
-      sector.areaOperativaId !==
-      dto.areaOperativaId
+      !ronda ||
+      !ronda.activo
     ) {
-      throw new BadRequestException(
-        'El sector no pertenece al área operativa seleccionada',
+      throw new NotFoundException(
+        'La ronda no existe o está inactiva',
       );
     }
 
     /*
-     * 7. Verificar que existan evaluaciones
+     * 6. Verificar sector.
+     *
+     * Tenemos dos casos:
+     *
+     * A) El agente tiene sector:
+     *    debe enviarse exactamente
+     *    ese mismo sector.
+     *
+     * B) El agente no tiene sector:
+     *    no debe enviarse sectorId.
+     */
+
+    const sectorId =
+      dto.sectorId ?? null;
+
+    if (
+      agente.sectorId !==
+      sectorId
+    ) {
+      if (
+        agente.sectorId === null
+      ) {
+        throw new BadRequestException(
+          'El agente sanitario no tiene un sector asignado',
+        );
+      }
+
+      throw new BadRequestException(
+        'El sector seleccionado no corresponde al sector del agente sanitario',
+      );
+    }
+
+    /*
+     * Si existe sector,
+     * verificamos que continúe
+     * existiendo y esté activo.
+     */
+    if (sectorId !== null) {
+      const sector =
+        await this.prisma.sector.findUnique({
+          where: {
+            id: sectorId,
+          },
+        });
+
+      if (
+        !sector ||
+        !sector.activo
+      ) {
+        throw new NotFoundException(
+          'El sector no existe o está inactivo',
+        );
+      }
+
+      /*
+       * También comprobamos
+       * que pertenezca al área.
+       */
+      if (
+        sector.areaOperativaId !==
+        dto.areaOperativaId
+      ) {
+        throw new BadRequestException(
+          'El sector no pertenece al área operativa seleccionada',
+        );
+      }
+    }
+
+    /*
+     * 7. Verificar evaluaciones
      */
     if (
       !dto.evaluaciones ||
@@ -141,11 +217,14 @@ export class SupervisionesService {
      */
     const criterioIds =
       dto.evaluaciones.map(
-        (evaluacion) => evaluacion.criterioId,
+        (evaluacion) =>
+          evaluacion.criterioId,
       );
 
     const criterioIdsUnicos =
-      new Set(criterioIds);
+      new Set(
+        criterioIds,
+      );
 
     if (
       criterioIds.length !==
@@ -165,8 +244,10 @@ export class SupervisionesService {
           id: {
             in: criterioIds,
           },
+
           activo: true,
         },
+
         orderBy: [
           {
             bloque: {
@@ -180,8 +261,9 @@ export class SupervisionesService {
       });
 
     /*
-     * Verificar que todos los criterios enviados
-     * existan y estén activos.
+     * Comprobar que todos
+     * los criterios enviados
+     * existen y están activos.
      */
     if (
       criterios.length !==
@@ -193,25 +275,36 @@ export class SupervisionesService {
     }
 
     /*
-     * 10. Calcular promedio
+     * 10. Calcular promedio.
      *
-     * Todos los criterios tienen el mismo peso.
+     * Todos los criterios
+     * tienen el mismo peso.
      */
-    const suma = dto.evaluaciones.reduce(
-      (total, evaluacion) =>
-        total + evaluacion.puntuacion,
-      0,
-    );
+    const suma =
+      dto.evaluaciones.reduce(
+        (
+          total,
+          evaluacion,
+        ) =>
+          total +
+          evaluacion.puntuacion,
+        0,
+      );
 
     const promedio =
-      suma / dto.evaluaciones.length;
+      suma /
+      dto.evaluaciones.length;
 
     /*
-     * Redondeamos a dos decimales porque
-     * el campo Prisma es Decimal(4,2).
+     * Redondear a dos
+     * decimales.
      */
     const promedioRedondeado =
-      Number(promedio.toFixed(2));
+      Number(
+        promedio.toFixed(
+          2,
+        ),
+      );
 
     /*
      * 11. Calcular clasificación
@@ -222,7 +315,9 @@ export class SupervisionesService {
       );
 
     /*
-     * 12. Crear todo dentro de una transacción
+     * 12. Crear supervisión
+     * y evaluaciones dentro
+     * de una transacción.
      */
     return this.prisma.$transaction(
       async (tx) => {
@@ -237,16 +332,37 @@ export class SupervisionesService {
               areaOperativaId:
                 dto.areaOperativaId,
 
-              sectorId:
-                dto.sectorId,
+              /*
+               * Puede ser un ID
+               * o null.
+               */
+              sectorId,
 
-              fecha: new Date(dto.fecha),
+              /*
+               * Nueva relación
+               * con Ronda.
+               */
+              rondaId:
+                dto.rondaId,
+
+              fecha:
+                new Date(
+                  dto.fecha,
+                ),
 
               familiaNumero:
                 dto.familiaNumero,
 
-              rondaNumero:
-                dto.rondaNumero,
+              /*
+               * Dejamos de cargar
+               * rondaNumero en las
+               * nuevas supervisiones.
+               *
+               * El campo puede seguir
+               * existiendo en Prisma
+               * por compatibilidad con
+               * datos históricos.
+               */
 
               decisionGestion:
                 dto.decisionGestion,
@@ -271,35 +387,40 @@ export class SupervisionesService {
                 dto.recomendaciones,
 
               evaluaciones: {
-                create: dto.evaluaciones.map(
-                  (evaluacion) => {
-                    const criterio =
-                      criterios.find(
-                        (c) =>
-                          c.id ===
+                create:
+                  dto.evaluaciones.map(
+                    (
+                      evaluacion,
+                    ) => {
+                      const criterio =
+                        criterios.find(
+                          (c) =>
+                            c.id ===
+                            evaluacion.criterioId,
+                        );
+
+                      return {
+                        criterioId:
                           evaluacion.criterioId,
-                      );
 
-                    return {
-                      criterioId:
-                        evaluacion.criterioId,
+                        criterioNombre:
+                          criterio!.nombre,
 
-                      criterioNombre:
-                        criterio!.nombre,
+                        criterioDescripcion:
+                          criterio!
+                            .descripcion,
 
-                      criterioDescripcion:
-                        criterio!.descripcion,
-
-                      puntuacion:
-                        evaluacion.puntuacion,
-                    };
-                  },
-                ),
+                        puntuacion:
+                          evaluacion.puntuacion,
+                      };
+                    },
+                  ),
               },
             },
 
             include: {
-              agenteSanitario: true,
+              agenteSanitario:
+                true,
 
               supervisor: {
                 select: {
@@ -311,9 +432,14 @@ export class SupervisionesService {
                 },
               },
 
-              areaOperativa: true,
+              areaOperativa:
+                true,
 
-              sector: true,
+              sector:
+                true,
+
+              ronda:
+                true,
 
               evaluaciones: {
                 orderBy: {
@@ -327,96 +453,236 @@ export class SupervisionesService {
       },
     );
   }
-  async listar() {
-    return this.prisma.supervision.findMany({
-      orderBy: {
-        fecha: 'desc',
+
+  /*
+   * LISTAR COMPAGINADA
+   */
+  async listar(
+    page = 1,
+    limit = 15,
+  ) {
+    const pagina =
+      Number.isFinite(page) && page > 0
+        ? Math.floor(page)
+        : 1;
+
+    const limite =
+      Number.isFinite(limit) &&
+      limit > 0
+        ? Math.min(
+            Math.floor(limit),
+            15,
+          )
+        : 15;
+
+    const skip =
+      (pagina - 1) * limite;
+
+    const [
+      supervisiones,
+      total,
+    ] = await Promise.all([
+      this.prisma.supervision.findMany({
+        skip,
+        take: limite,
+
+        orderBy: [
+          {
+            fecha: 'desc',
+          },
+          {
+            id: 'desc',
+          },
+        ],
+
+        include: {
+          agenteSanitario: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              documento: true,
+              legajo: true,
+            },
+          },
+
+          supervisor: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              email: true,
+            },
+          },
+
+          areaOperativa: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+
+          sector: {
+            select: {
+              id: true,
+              numero: true,
+              nombre: true,
+            },
+          },
+
+          ronda: {
+            select: {
+              id: true,
+              externalRondaId: true,
+              nombre: true,
+            },
+          },
+        },
+      }),
+
+      this.prisma.supervision.count(),
+    ]);
+
+    const totalPages =
+      total === 0
+        ? 0
+        : Math.ceil(
+            total / limite,
+          );
+
+    return {
+      data: supervisiones,
+
+      meta: {
+        page: pagina,
+        limit: limite,
+        total,
+        totalPages,
       },
-
-      include: {
-        agenteSanitario: {
-          select: {
-            id: true,
-            nombre: true,
-            apellido: true,
-            documento: true,
-            legajo: true,
-          },
-        },
-
-        supervisor: {
-          select: {
-            id: true,
-            nombre: true,
-            apellido: true,
-            email: true,
-          },
-        },
-
-        areaOperativa: {
-          select: {
-            id: true,
-            nombre: true,
-          },
-        },
-
-        sector: {
-          select: {
-            id: true,
-            nombre: true,
-          },
-        },
-      },
-    });
+    };
   }
+
+  /*
+   * LISTAR POR SUPERVISOR
+   */
   async listarPorSupervisor(
     supervisorId: number,
+    page = 1,
+    limit = 15,
   ) {
-    return this.prisma.supervision.findMany({
-      where: {
-        supervisorId,
+    const pagina =
+      Number.isFinite(page) && page > 0
+        ? Math.floor(page)
+        : 1;
+
+    const limite =
+      Number.isFinite(limit) &&
+      limit > 0
+        ? Math.min(
+            Math.floor(limit),
+            15,
+          )
+        : 15;
+
+    const skip =
+      (pagina - 1) * limite;
+
+    const where = {
+      supervisorId,
+    };
+
+    const [
+      supervisiones,
+      total,
+    ] = await Promise.all([
+      this.prisma.supervision.findMany({
+        where,
+
+        skip,
+        take: limite,
+
+        orderBy: [
+          {
+            fecha: 'desc',
+          },
+          {
+            id: 'desc',
+          },
+        ],
+
+        include: {
+          agenteSanitario: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              documento: true,
+              legajo: true,
+            },
+          },
+
+          supervisor: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              email: true,
+            },
+          },
+
+          areaOperativa: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+
+          sector: {
+            select: {
+              id: true,
+              numero: true,
+              nombre: true,
+            },
+          },
+
+          ronda: {
+            select: {
+              id: true,
+              externalRondaId: true,
+              nombre: true,
+            },
+          },
+        },
+      }),
+
+      this.prisma.supervision.count({
+        where,
+      }),
+    ]);
+
+    const totalPages =
+      total === 0
+        ? 0
+        : Math.ceil(
+            total / limite,
+          );
+
+    return {
+      data: supervisiones,
+
+      meta: {
+        page: pagina,
+        limit: limite,
+        total,
+        totalPages,
       },
-
-      orderBy: {
-        fecha: 'desc',
-      },
-
-      include: {
-        agenteSanitario: {
-          select: {
-            id: true,
-            nombre: true,
-            apellido: true,
-            documento: true,
-            legajo: true,
-          },
-        },
-
-        supervisor: {
-          select: {
-            id: true,
-            nombre: true,
-            apellido: true,
-            email: true,
-          },
-        },
-
-        areaOperativa: {
-          select: {
-            id: true,
-            nombre: true,
-          },
-        },
-
-        sector: {
-          select: {
-            id: true,
-            nombre: true,
-          },
-        },
-      },
-    });
+    };
   }
+
+  /*
+   * BUSCAR SUPERVISIÓN
+   * SEGÚN USUARIO Y ROL
+   */
   async buscarPorIdParaUsuario(
     id: number,
     usuarioId: number,
@@ -437,7 +703,8 @@ export class SupervisionesService {
         },
 
         include: {
-          agenteSanitario: true,
+          agenteSanitario:
+            true,
 
           supervisor: {
             select: {
@@ -448,9 +715,14 @@ export class SupervisionesService {
             },
           },
 
-          areaOperativa: true,
+          areaOperativa:
+            true,
 
-          sector: true,
+          sector:
+            true,
+
+          ronda:
+            true,
 
           evaluaciones: {
             orderBy: {
@@ -468,8 +740,21 @@ export class SupervisionesService {
 
     return supervision;
   }
-  async listarPorAgente(
+
+  /*
+  * LISTAR SUPERVISIONES
+  * DE UN AGENTE SEGÚN ROL
+  *
+  * ADMIN:
+  * ve todas.
+  *
+  * SUPERVISOR:
+  * solamente las realizadas por él.
+  */
+  async listarPorAgenteParaUsuario(
     agenteSanitarioId: number,
+    usuarioId: number,
+    rol: RolUsuario,
   ) {
     const agente =
       await this.prisma.agenteSanitario.findUnique({
@@ -487,44 +772,161 @@ export class SupervisionesService {
     return this.prisma.supervision.findMany({
       where: {
         agenteSanitarioId,
-      },
-      orderBy: {
-        fecha: 'desc',
+
+        ...(rol === RolUsuario.SUPERVISOR
+          ? {
+              supervisorId: usuarioId,
+            }
+          : {}),
       },
 
+      orderBy: [
+        {
+          fecha: 'desc',
+        },
+        {
+          id: 'desc',
+        },
+      ],
+
       include: {
+        agenteSanitario: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            documento: true,
+            legajo: true,
+          },
+        },
+
         supervisor: {
           select: {
             id: true,
             nombre: true,
             apellido: true,
+            email: true,
           },
         },
+
         areaOperativa: {
           select: {
             id: true,
             nombre: true,
           },
         },
+
         sector: {
           select: {
             id: true,
+            numero: true,
+            nombre: true,
+          },
+        },
+
+        ronda: {
+          select: {
+            id: true,
+            externalRondaId: true,
             nombre: true,
           },
         },
       },
     });
   }
+  /*
+  * LISTAR PARA EXPORTACIÓN
+  *
+  * No utiliza paginación.
+  *
+  * ADMIN:
+  * exporta todas.
+  *
+  * SUPERVISOR:
+  * exporta solamente las propias.
+  */
+  async listarParaExportacion(
+    usuarioId: number,
+    rol: RolUsuario,
+  ) {
+    return this.prisma.supervision.findMany({
+      where:
+        rol === RolUsuario.SUPERVISOR
+          ? {
+              supervisorId: usuarioId,
+            }
+          : undefined,
+
+      orderBy: [
+        {
+          fecha: 'desc',
+        },
+        {
+          id: 'desc',
+        },
+      ],
+
+      include: {
+        agenteSanitario: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            documento: true,
+            legajo: true,
+          },
+        },
+
+        supervisor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            email: true,
+          },
+        },
+
+        areaOperativa: {
+          select: {
+            id: true,
+            nombre: true,
+          },
+        },
+
+        sector: {
+          select: {
+            id: true,
+            numero: true,
+            nombre: true,
+          },
+        },
+
+        ronda: {
+          select: {
+            id: true,
+            externalRondaId: true,
+            nombre: true,
+          },
+        },
+      },
+    });
+  }
+
+  /*
+   * MÉTRICAS DEL SUPERVISOR
+   */
   async obtenerMetricasSupervisor(
     supervisorId: number,
   ) {
-    const ahora = new Date();
+    const ahora =
+      new Date();
 
-    const inicioMes = new Date(
-      ahora.getFullYear(),
-      ahora.getMonth(),
-      1,
-    );
+    const inicioMes =
+      new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        1,
+      );
 
     const [
       totalSupervisiones,
@@ -603,6 +1005,16 @@ export class SupervisionesService {
           sector: {
             select: {
               id: true,
+              numero: true,
+              nombre: true,
+            },
+          },
+
+          ronda: {
+            select: {
+              id: true,
+              externalRondaId:
+                true,
               nombre: true,
             },
           },
@@ -618,7 +1030,9 @@ export class SupervisionesService {
       promedioGeneral:
         promedio._avg.promedio
           ? Number(
-              promedio._avg.promedio,
+              promedio
+                ._avg
+                .promedio,
             )
           : null,
 
@@ -651,14 +1065,20 @@ export class SupervisionesService {
       ultimasSupervisiones,
     };
   }
-  async obtenerMetricasGlobales() {
-    const ahora = new Date();
 
-    const inicioMes = new Date(
-      ahora.getFullYear(),
-      ahora.getMonth(),
-      1,
-    );
+  /*
+   * MÉTRICAS GLOBALES
+   */
+  async obtenerMetricasGlobales() {
+    const ahora =
+      new Date();
+
+    const inicioMes =
+      new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        1,
+      );
 
     const [
       totalSupervisiones,
@@ -727,6 +1147,16 @@ export class SupervisionesService {
           sector: {
             select: {
               id: true,
+              numero: true,
+              nombre: true,
+            },
+          },
+
+          ronda: {
+            select: {
+              id: true,
+              externalRondaId:
+                true,
               nombre: true,
             },
           },
@@ -742,7 +1172,9 @@ export class SupervisionesService {
       promedioGeneral:
         promedio._avg.promedio
           ? Number(
-              promedio._avg.promedio,
+              promedio
+                ._avg
+                .promedio,
             )
           : null,
 
@@ -776,6 +1208,7 @@ export class SupervisionesService {
     };
   }
 }
+
 function obtenerCantidadClasificacion(
   datos: {
     clasificacion:

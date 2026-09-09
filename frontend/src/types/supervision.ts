@@ -7,9 +7,18 @@ export type DecisionGestion =
 export interface Sector {
   id: number;
   areaOperativaId: number;
+  externalSectorId?: number | null;
   numero: number;
   nombre?: string | null;
+  cobertura?: string | null;
   activo: boolean;
+}
+
+export interface RondaSupervision {
+  id: number;
+  externalRondaId?: number | null;
+  nombre: string;
+  activo?: boolean;
 }
 
 export interface EvaluacionRequest {
@@ -20,22 +29,40 @@ export interface EvaluacionRequest {
 export interface CrearSupervisionRequest {
   agenteSanitarioId: number;
   areaOperativaId: number;
-  sectorId: number;
+
+  sectorId?: number;
+
+  rondaId: number;
+
   fecha: string;
+
   familiaNumero?: number;
-  rondaNumero?: number;
+
   decisionGestion: DecisionGestion;
+
   fortalezas?: string;
   oportunidadesMejora?: string;
   situacionesCriticas?: string;
   recomendaciones?: string;
+
   evaluaciones: EvaluacionRequest[];
 }
+
 export interface SupervisionListado {
   id: number;
+
   fecha: string;
+
   familiaNumero?: number | null;
+
+  /*
+   * Lo dejamos temporalmente
+   * porque puede existir en
+   * supervisiones históricas.
+   */
   rondaNumero?: number | null;
+
+  rondaId?: number | null;
 
   decisionGestion:
     | 'NO_REQUIERE'
@@ -76,21 +103,35 @@ export interface SupervisionListado {
     id: number;
     numero?: number;
     nombre?: string | null;
-  };
+  } | null;
+
+  ronda?: {
+    id: number;
+    externalRondaId?: number | null;
+    nombre: string;
+  } | null;
 }
+
 export interface EvaluacionDetalle {
   id: number;
+
   criterioId: number;
+
   criterioNombre: string;
+
   criterioDescripcion?: string | null;
+
   puntuacion: number;
 }
 
 export interface SupervisionDetalle
   extends SupervisionListado {
   fortalezas?: string | null;
+
   oportunidadesMejora?: string | null;
+
   situacionesCriticas?: string | null;
+
   recomendaciones?: string | null;
 
   evaluaciones: EvaluacionDetalle[];

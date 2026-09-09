@@ -14,7 +14,7 @@ import {
 import {
   obtenerMetricasGlobales,
   obtenerMisMetricas,
-  obtenerMisSupervisiones,
+  obtenerSupervisionesParaExportacion,
 } from '../../services/supervisiones.service';
 
 import {
@@ -136,7 +136,7 @@ export default function DashboardPage() {
         setError('');
 
         const supervisiones =
-          await obtenerMisSupervisiones();
+          await obtenerSupervisionesParaExportacion();
 
         if (
           supervisiones.length === 0

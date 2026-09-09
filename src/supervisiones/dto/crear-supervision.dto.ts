@@ -1,10 +1,7 @@
 import { IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
-
 import { Type } from 'class-transformer';
 import { DecisionGestion } from '@prisma/client';
-
 import { CrearEvaluacionCriterioDto } from './crear-evaluacion-criterio.dto';
-
 export class CrearSupervisionDto {
   @IsInt()
   @Min(1)
@@ -14,9 +11,14 @@ export class CrearSupervisionDto {
   @Min(1)
   areaOperativaId: number;
 
+  @IsOptional()
   @IsInt()
   @Min(1)
-  sectorId: number;
+  sectorId?: number;
+
+  @IsInt()
+  @Min(1)
+  rondaId: number;
 
   @IsDateString()
   fecha: string;
@@ -25,11 +27,6 @@ export class CrearSupervisionDto {
   @IsInt()
   @Min(1)
   familiaNumero?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  rondaNumero?: number;
 
   @IsEnum(DecisionGestion)
   decisionGestion: DecisionGestion;
@@ -51,7 +48,13 @@ export class CrearSupervisionDto {
   recomendaciones?: string;
 
   @IsNotEmpty()
-  @ValidateNested({ each: true })
-  @Type(() => CrearEvaluacionCriterioDto)
-  evaluaciones: CrearEvaluacionCriterioDto[];
+  @ValidateNested({
+    each: true,
+  })
+  @Type(
+    () =>
+      CrearEvaluacionCriterioDto,
+  )
+  evaluaciones:
+    CrearEvaluacionCriterioDto[];
 }

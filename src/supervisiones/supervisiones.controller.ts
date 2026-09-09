@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 
 import type { Request } from 'express';
@@ -77,6 +78,8 @@ export class SupervisionesController {
   @Roles(RolUsuario.SUPERVISOR)
   listarMisSupervisiones(
     @Req() req: Request,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -84,6 +87,8 @@ export class SupervisionesController {
     return this.supervisionesService
       .listarPorSupervisor(
         usuario.id,
+        page ? Number(page) : 1,
+        limit ? Number(limit) : 15,
       );
   }
 
@@ -104,10 +109,8 @@ export class SupervisionesController {
         usuario.id,
       );
   }
-
   /*
    * ADMIN
-   * Métricas globales.
    */
   @Get('metricas')
   @Roles(RolUsuario.ADMIN)
@@ -115,35 +118,80 @@ export class SupervisionesController {
     return this.supervisionesService
       .obtenerMetricasGlobales();
   }
-
   /*
    * ADMIN
-   * Todas las supervisiones.
+   * Métricas globales paginadas.
    */
   @Get()
   @Roles(RolUsuario.ADMIN)
-  listar() {
-    return this.supervisionesService.listar();
+  listar(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.supervisionesService.listar(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 15,
+    );
   }
-
   /*
    * ADMIN
    * Historial completo de un agente.
    */
   @Get('agente/:agenteId')
-  @Roles(RolUsuario.ADMIN)
+  @Roles(
+    RolUsuario.ADMIN,
+    RolUsuario.SUPERVISOR,
+  )
   listarPorAgente(
     @Param(
       'agenteId',
       ParseIntPipe,
     )
     agenteId: number,
+
+  @Req() req: Request,
   ) {
+    const usuario =
+      req.user as UsuarioAutenticado;
+
     return this.supervisionesService
-      .listarPorAgente(
+      .listarPorAgenteParaUsuario(
         agenteId,
+        usuario.id,
+        usuario.rol,
       );
   }
+  /*
+ * EXPORTACIÓN
+ *
+ * ADMIN:
+ * obtiene todas las supervisiones.
+ *
+ * SUPERVISOR:
+ * obtiene solamente las propias.
+ *
+ * Este endpoint NO está paginado
+ * porque se utiliza para generar
+ * el reporte PDF completo.
+ */
+  @Get('exportacion')
+  @Roles(
+    RolUsuario.ADMIN,
+    RolUsuario.SUPERVISOR,
+  )
+  listarParaExportacion(
+    @Req() req: Request,
+  ) {
+    const usuario =
+      req.user as UsuarioAutenticado;
+
+    return this.supervisionesService
+      .listarParaExportacion(
+        usuario.id,
+        usuario.rol,
+      );
+  }
+  
 
   /*
    * ADMIN:

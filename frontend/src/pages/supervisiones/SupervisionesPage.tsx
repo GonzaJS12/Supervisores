@@ -10,6 +10,7 @@ import {
 import {
   obtenerMisSupervisiones,
   obtenerSupervisiones,
+  obtenerSupervisionesParaExportacion,
 } from '../../services/supervisiones.service';
 
 import {
@@ -23,6 +24,8 @@ import type {
 import {
   useAuth,
 } from '../../context/AuthContext';
+
+const LIMITE_POR_PAGINA = 15;
 
 export default function SupervisionesPage() {
   const navigate = useNavigate();
@@ -41,10 +44,31 @@ export default function SupervisionesPage() {
     useState<SupervisionListado[]>([]);
 
   const [
+    pagina,
+    setPagina,
+  ] = useState(1);
+
+  const [
+    total,
+    setTotal,
+  ] = useState(0);
+
+  const [
+    totalPaginas,
+    setTotalPaginas,
+  ] = useState(0);
+
+  const [
     cargando,
     setCargando,
   ] =
     useState(true);
+
+  const [
+    exportandoPdf,
+    setExportandoPdf,
+  ] =
+    useState(false);
 
   const [
     error,
@@ -55,86 +79,163 @@ export default function SupervisionesPage() {
   /*
    * EXPORTACIÓN PDF
    *
-   * La misma información que el usuario
-   * puede visualizar en pantalla es la
-   * información que se exportará.
+   * El listado visual está paginado,
+   * pero el PDF debe contener todas
+   * las supervisiones permitidas
+   * para el usuario autenticado.
+   */
+  const handleExportarPdf =
+    async () => {
+      try {
+        setExportandoPdf(true);
+        setError('');
+
+        const datos =
+          await obtenerSupervisionesParaExportacion();
+
+        if (datos.length === 0) {
+          setError(
+            'No hay supervisiones para exportar.',
+          );
+
+          return;
+        }
+
+        const nombreSupervisor =
+          !esAdmin && usuario
+            ? `${usuario.nombre} ${usuario.apellido}`
+            : undefined;
+
+        exportarSupervisionesPdf({
+          supervisiones:
+            datos,
+
+          titulo: esAdmin
+            ? 'Reporte global de supervisiones'
+            : 'Reporte de mis supervisiones',
+
+          nombreArchivo: esAdmin
+            ? 'supervisiones-global'
+            : 'mis-supervisiones',
+
+          supervisor:
+            nombreSupervisor,
+        });
+      } catch (error) {
+        console.error(error);
+
+        setError(
+          'No se pudo generar el PDF de supervisiones.',
+        );
+      } finally {
+        setExportandoPdf(false);
+      }
+    };
+
+  /*
+   * CARGA DEL LISTADO PAGINADO
    *
    * ADMIN:
    * todas las supervisiones.
    *
    * SUPERVISOR:
-   * solamente sus supervisiones.
-   */
-  const handleExportarPdf = () => {
-    if (supervisiones.length === 0) {
-      setError(
-        'No hay supervisiones para exportar.',
-      );
-
-      return;
-    }
-
-    setError('');
-
-    const nombreSupervisor =
-      !esAdmin && usuario
-        ? `${usuario.nombre} ${usuario.apellido}`
-        : undefined;
-
-    exportarSupervisionesPdf({
-      supervisiones,
-
-      titulo: esAdmin
-        ? 'Reporte global de supervisiones'
-        : 'Reporte de mis supervisiones',
-
-      nombreArchivo: esAdmin
-        ? 'supervisiones-global'
-        : 'mis-supervisiones',
-
-      supervisor:
-        nombreSupervisor,
-    });
-  };
-
-  /*
-   * CARGA DEL LISTADO SEGÚN ROL
-   *
-   * No usamos el mismo endpoint para
-   * ambos usuarios.
-   *
-   * Esto mantiene la seguridad que ya
-   * implementamos en el backend.
+   * solamente las propias.
    */
   useEffect(() => {
-    const cargar = async () => {
-      try {
-        setCargando(true);
-        setError('');
+    const cargar =
+      async () => {
+        try {
+          setCargando(true);
+          setError('');
 
-        const datos =
-          esAdmin
-            ? await obtenerSupervisiones()
-            : await obtenerMisSupervisiones();
+          const respuesta =
+            esAdmin
+              ? await obtenerSupervisiones(
+                  pagina,
+                  LIMITE_POR_PAGINA,
+                )
+              : await obtenerMisSupervisiones(
+                  pagina,
+                  LIMITE_POR_PAGINA,
+                );
 
-        setSupervisiones(
-          datos,
-        );
-      } catch (error) {
-        console.error(error);
+          setSupervisiones(
+            respuesta.data,
+          );
 
-        setError(
-          esAdmin
-            ? 'No se pudieron cargar las supervisiones.'
-            : 'No se pudieron cargar sus supervisiones.',
-        );
-      } finally {
-        setCargando(false);
-      }
-    };
+          setTotal(
+            respuesta.meta.total,
+          );
+
+          setTotalPaginas(
+            respuesta.meta.totalPages,
+          );
+
+          /*
+           * Si por algún motivo estamos
+           * parados en una página que ya
+           * no existe, volvemos a la última.
+           */
+          if (
+            respuesta.meta.totalPages > 0 &&
+            pagina >
+              respuesta.meta.totalPages
+          ) {
+            setPagina(
+              respuesta.meta.totalPages,
+            );
+          }
+        } catch (error) {
+          console.error(error);
+
+          setError(
+            esAdmin
+              ? 'No se pudieron cargar las supervisiones.'
+              : 'No se pudieron cargar sus supervisiones.',
+          );
+        } finally {
+          setCargando(false);
+        }
+      };
 
     cargar();
+  }, [
+    esAdmin,
+    pagina,
+  ]);
+
+  /*
+   * Cuando cambia el rol,
+   * comenzamos nuevamente
+   * desde la primera página.
+   */
+  useEffect(() => {
+    setPagina(1);
   }, [esAdmin]);
+
+  const desde =
+    total === 0
+      ? 0
+      : (pagina - 1) *
+          LIMITE_POR_PAGINA +
+        1;
+
+  const hasta =
+    total === 0
+      ? 0
+      : Math.min(
+          pagina *
+            LIMITE_POR_PAGINA,
+          total,
+        );
+
+  const puedeAnterior =
+    pagina > 1 &&
+    !cargando;
+
+  const puedeSiguiente =
+    pagina < totalPaginas &&
+    !cargando;
 
   return (
     <div>
@@ -168,13 +269,16 @@ export default function SupervisionesPage() {
             }
             disabled={
               cargando ||
-              supervisiones.length === 0
+              exportandoPdf ||
+              total === 0
             }
             className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {esAdmin
-              ? 'Exportar PDF'
-              : 'Exportar mis supervisiones'}
+            {exportandoPdf
+              ? 'Generando PDF...'
+              : esAdmin
+                ? 'Exportar PDF'
+                : 'Exportar mis supervisiones'}
           </button>
 
           <button
@@ -200,6 +304,43 @@ export default function SupervisionesPage() {
           {error}
         </div>
       )}
+
+      {/* INFORMACIÓN DE PAGINACIÓN */}
+
+      {!cargando &&
+        total > 0 && (
+          <div className="mb-4 flex flex-col gap-1 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+
+            <p>
+              Mostrando{' '}
+              <span className="font-semibold text-slate-700">
+                {desde}
+              </span>
+              {' - '}
+              <span className="font-semibold text-slate-700">
+                {hasta}
+              </span>
+              {' de '}
+              <span className="font-semibold text-slate-700">
+                {total}
+              </span>
+              {' '}
+              supervisiones
+            </p>
+
+            <p>
+              Página{' '}
+              <span className="font-semibold text-slate-700">
+                {pagina}
+              </span>
+              {' de '}
+              <span className="font-semibold text-slate-700">
+                {totalPaginas}
+              </span>
+            </p>
+
+          </div>
+        )}
 
       {/* TABLA */}
 
@@ -336,24 +477,20 @@ export default function SupervisionesPage() {
                         </p>
 
                         <p className="text-xs text-slate-500">
-                          {
-                            supervision
-                              .sector
-                              .nombre ??
-                            `Sector ${
-                              supervision
-                                .sector
-                                .numero ?? ''
-                            }`
-                          }
+                          {supervision.sector
+                            ? supervision.sector.nombre ??
+                              `Sector ${
+                                supervision
+                                  .sector
+                                  .numero ??
+                                ''
+                              }`
+                            : 'Sin sector asignado'}
                         </p>
 
                       </td>
 
-                      {/* SUPERVISOR
-                          Solo tiene sentido
-                          mostrarlo al ADMIN.
-                      */}
+                      {/* SUPERVISOR */}
 
                       {esAdmin && (
 
@@ -435,6 +572,60 @@ export default function SupervisionesPage() {
         )}
 
       </div>
+
+      {/* PAGINACIÓN */}
+
+      {!cargando &&
+        totalPaginas > 1 && (
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <button
+              type="button"
+              disabled={
+                !puedeAnterior
+              }
+              onClick={() =>
+                setPagina(
+                  paginaActual =>
+                    paginaActual - 1,
+                )
+              }
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ← Anterior
+            </button>
+
+            <span className="text-center text-sm text-slate-500">
+              Página{' '}
+              <span className="font-semibold text-slate-700">
+                {pagina}
+              </span>
+              {' de '}
+              <span className="font-semibold text-slate-700">
+                {totalPaginas}
+              </span>
+            </span>
+
+            <button
+              type="button"
+              disabled={
+                !puedeSiguiente
+              }
+              onClick={() =>
+                setPagina(
+                  paginaActual =>
+                    paginaActual + 1,
+                )
+              }
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Siguiente →
+            </button>
+
+          </div>
+
+        )}
 
     </div>
   );
