@@ -10,9 +10,11 @@ import { AgentesModule } from './agentes/agentes.module';
 import { SupervisionesModule } from './supervisiones/supervisiones.module';
 import { BloquesEvaluacionModule } from './bloques-evaluacion/bloques-evaluacion.module';
 import { CriteriosEvaluacionModule } from './criterios-evaluacion/criterios-evaluacion.module';
+import { ZonasModule } from './zonas/zonas.module';
+import { RondasModule } from './rondas/rondas.module';
 
 @Module({
-  imports: [PrismaModule, UsuariosModule, AuthModule, AreasModule, SectoresModule, AgentesModule, SupervisionesModule, BloquesEvaluacionModule,CriteriosEvaluacionModule],
+  imports: [PrismaModule, UsuariosModule, AuthModule, AreasModule, SectoresModule, AgentesModule, SupervisionesModule, BloquesEvaluacionModule,CriteriosEvaluacionModule, ZonasModule, RondasModule],
   controllers: [AppController],
   providers: [AppService],
 })

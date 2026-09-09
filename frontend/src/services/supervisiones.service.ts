@@ -21,6 +21,19 @@ export interface MetricasSupervision {
   ultimasSupervisiones: SupervisionListado[];
 }
 
+export interface PaginacionMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface RespuestaPaginadaSupervisiones {
+  data: SupervisionListado[];
+
+  meta: PaginacionMeta;
+}
+
 export const crearSupervision = async (
   datos: CrearSupervisionRequest,
 ) => {
@@ -35,15 +48,27 @@ export const crearSupervision = async (
 /*
  * ADMIN
  * Todas las supervisiones.
+ * Paginadas de a 15.
  */
 export const obtenerSupervisiones =
-  async (): Promise<
-    SupervisionListado[]
+  async (
+    page = 1,
+    limit = 15,
+  ): Promise<
+    RespuestaPaginadaSupervisiones
   > => {
     const response =
       await api.get<
-        SupervisionListado[]
-      >('/supervisiones');
+        RespuestaPaginadaSupervisiones
+      >(
+        '/supervisiones',
+        {
+          params: {
+            page,
+            limit,
+          },
+        },
+      );
 
     return response.data;
   };
@@ -51,20 +76,55 @@ export const obtenerSupervisiones =
 /*
  * SUPERVISOR
  * Solamente sus supervisiones.
+ * Paginadas de a 15.
  */
 export const obtenerMisSupervisiones =
-  async (): Promise<
-    SupervisionListado[]
+  async (
+    page = 1,
+    limit = 15,
+  ): Promise<
+    RespuestaPaginadaSupervisiones
   > => {
     const response =
       await api.get<
-        SupervisionListado[]
+        RespuestaPaginadaSupervisiones
       >(
         '/supervisiones/mis-supervisiones',
+        {
+          params: {
+            page,
+            limit,
+          },
+        },
       );
 
     return response.data;
   };
+  /*
+  * ADMIN / SUPERVISOR
+  *
+  * Obtiene las supervisiones completas
+  * para generar el PDF.
+  *
+  * ADMIN:
+  * todas las supervisiones.
+  *
+  * SUPERVISOR:
+  * solamente las propias.
+  */
+  export const obtenerSupervisionesParaExportacion =
+    async (): Promise<
+      SupervisionListado[]
+    > => {
+      const response =
+        await api.get<
+          SupervisionListado[]
+        >(
+          '/supervisiones/exportacion',
+        );
+
+      return response.data;
+    };
 
 /*
  * SUPERVISOR

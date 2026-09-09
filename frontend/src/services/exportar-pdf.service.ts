@@ -1,9 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-import type {
-  SupervisionListado,
-} from '../types/supervision';
+import type { SupervisionListado } from '../types/supervision';
 
 interface ExportarSupervisionesPdfParams {
   supervisiones: SupervisionListado[];
@@ -113,11 +110,13 @@ export const exportarSupervisionesPdf = ({
         supervision.areaOperativa
           .nombre,
 
-        supervision.sector.nombre ??
-          `Sector ${
+        supervision.sector
+          ? supervision.sector.nombre ??
+            `Sector ${
             supervision.sector.numero ??
             ''
-          }`,
+          }`
+          : 'Sin sector asignado',
 
         `${supervision.supervisor.nombre} ${supervision.supervisor.apellido}`,
 

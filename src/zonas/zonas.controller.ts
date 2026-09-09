@@ -1,16 +1,16 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { AreasService } from './areas.service';
+import { ZonasService } from './zonas.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('areas')
+@Controller('zonas')
 @UseGuards(JwtAuthGuard)
-export class AreasController {
+export class ZonasController {
   constructor(
-    private readonly areasService: AreasService,
+    private readonly zonasService: ZonasService,
   ) {}
 
   @Get()
   listar() {
-    return this.areasService.listar();
+    return this.zonasService.listar();
   }
 }

@@ -1,20 +1,16 @@
 import { Injectable } from '@nestjs/common';
-
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
-export class AreasService {
+export class ZonasService {
   constructor(
     private readonly prisma: PrismaService,
   ) {}
 
   async listar() {
-    return this.prisma.areaOperativa.findMany({
+    return this.prisma.zona.findMany({
       where: {
         activo: true,
-      },
-      include: {
-        zona: true,
       },
       orderBy: {
         nombre: 'asc',

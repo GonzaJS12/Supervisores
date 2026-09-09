@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -42,11 +41,36 @@ model Usuario {
   updatedAt DateTime @updatedAt
 }
 
+model Zona {
+  id Int @id @default(autoincrement())
+
+  externalZonaId Int? @unique
+
+  nombre String
+  codigo String?
+
+  activo Boolean @default(true)
+
+  areas AreaOperativa[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model AreaOperativa {
-  id          Int     @id @default(autoincrement())
-  nombre      String  @unique
+  id Int @id @default(autoincrement())
+
+  externalAreaId Int? @unique
+
+  zonaId Int?
+
+  nombre      String
   descripcion String?
-  activo      Boolean @default(true)
+  estabBase   String?
+
+  activo Boolean @default(true)
+
+  zona Zona? @relation(fields: [zonaId], references: [id])
 
   agentes       AgenteSanitario[]
   sectores      Sector[]
@@ -54,38 +78,78 @@ model AreaOperativa {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([zonaId])
 }
 
 model Sector {
-  id              Int     @id @default(autoincrement())
+  id Int @id @default(autoincrement())
+
   areaOperativaId Int
-  numero          Int
-  nombre          String?
-  activo          Boolean @default(true)
+
+  externalSectorId Int?
+  externalUuid     String? @unique
+
+  numero    Int
+  nombre    String?
+  cobertura String?
+  activo    Boolean @default(true)
+
+  centroSaludId   Int?
+  centroSaludUuid String?
 
   areaOperativa AreaOperativa @relation(fields: [areaOperativaId], references: [id])
+
+  agentes       AgenteSanitario[]
   supervisiones Supervision[]
 
   @@unique([areaOperativaId, numero])
   @@index([areaOperativaId])
+  @@index([externalSectorId])
 }
 
 model AgenteSanitario {
-  id              Int     @id @default(autoincrement())
+  id Int @id @default(autoincrement())
+
   areaOperativaId Int
-  nombre          String
-  apellido        String
-  documento       String?
-  legajo          String?
-  activo          Boolean @default(true)
+  sectorId        Int?
+
+  externalUserId Int?    @unique
+  externalUuid   String? @unique
+
+  nombre    String
+  apellido  String
+  documento String?
+  legajo    String?
+  cobertura String?
+
+  activo Boolean @default(true)
 
   areaOperativa AreaOperativa @relation(fields: [areaOperativaId], references: [id])
+
+  sector Sector? @relation(fields: [sectorId], references: [id])
+
   supervisiones Supervision[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([areaOperativaId])
+  @@index([sectorId])
+}
+
+model Ronda {
+  id Int @id @default(autoincrement())
+
+  externalRondaId Int? @unique
+
+  nombre String
+  activo Boolean @default(true)
+
+  supervisiones Supervision[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model BloqueEvaluacion {
@@ -119,21 +183,18 @@ model CriterioEvaluacion {
 }
 
 model Supervision {
-  id                Int @id @default(autoincrement())
-  agenteSanitarioId Int
-  supervisorId      Int
-  areaOperativaId   Int
-  sectorId          Int
-
-  fecha         DateTime
-  familiaNumero Int?
-  rondaNumero   Int?
-
-  decisionGestion DecisionGestion
-
-  promedio      Decimal?       @db.Decimal(4, 2)
-  clasificacion Clasificacion?
-
+  id                  Int             @id @default(autoincrement())
+  agenteSanitarioId   Int
+  supervisorId        Int
+  areaOperativaId     Int
+  sectorId            Int?
+  rondaId             Int?
+  fecha               DateTime
+  familiaNumero       Int?
+  rondaNumero         Int?
+  decisionGestion     DecisionGestion
+  promedio            Decimal?        @db.Decimal(4, 2)
+  clasificacion       Clasificacion?
   fortalezas          String?
   oportunidadesMejora String?
   situacionesCriticas String?
@@ -142,7 +203,8 @@ model Supervision {
   agenteSanitario AgenteSanitario @relation(fields: [agenteSanitarioId], references: [id])
   supervisor      Usuario         @relation(fields: [supervisorId], references: [id])
   areaOperativa   AreaOperativa   @relation(fields: [areaOperativaId], references: [id])
-  sector          Sector          @relation(fields: [sectorId], references: [id])
+  sector          Sector?         @relation(fields: [sectorId], references: [id])
+  ronda           Ronda?          @relation(fields: [rondaId], references: [id])
 
   evaluaciones EvaluacionCriterio[]
 
@@ -153,6 +215,7 @@ model Supervision {
   @@index([supervisorId])
   @@index([areaOperativaId])
   @@index([sectorId])
+  @@index([rondaId])
   @@index([fecha])
 }
 
