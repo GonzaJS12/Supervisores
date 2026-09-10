@@ -11,9 +11,13 @@ import type { Sector, DecisionGestion } from '../../types/supervision';
 import type { Ronda } from '../../types/ronda';
 import type { BloqueEvaluacion } from '../../types/evaluacion';
 import type { AreaOperativa } from '../../services/areas-operativas.service';
+import { useAuth } from '../../context/AuthContext';
 
 export default function NuevaSupervisionPage() {
   const navigate = useNavigate();
+  const {usuario} = useAuth();
+
+  const esAdmin = usuario?.rol === 'ADMIN';
 
   const [areas, setAreas] =
     useState<AreaOperativa[]>([]);
@@ -179,6 +183,45 @@ export default function NuevaSupervisionPage() {
   }, []);
 
   /*
+  * ÁREA DEL SUPERVISOR
+  *
+  * El ADMIN selecciona libremente.
+  *
+  * El SUPERVISOR utiliza
+  * automáticamente el área que
+  * tiene asignada en su usuario.
+  */
+  useEffect(() => {
+    if (
+      esAdmin ||
+      !usuario
+    ) {
+      return;
+    }
+
+    if (
+      usuario.areaOperativaId == null
+    ) {
+      setAreaId('');
+
+      setError(
+        'Su usuario no tiene un área operativa asignada.',
+      );
+
+      return;
+    }
+
+    setAreaId(
+      String(
+        usuario.areaOperativaId,
+      ),
+    );
+  }, [
+    esAdmin,
+    usuario,
+  ]);
+
+  /*
    * AL CAMBIAR ÁREA
    *
    * cargamos sectores
@@ -187,11 +230,22 @@ export default function NuevaSupervisionPage() {
   useEffect(() => {
     const cargarPorArea =
       async () => {
+        /*
+        * Cada vez que cambia el área,
+        * limpiamos inmediatamente todos
+        * los datos territoriales anteriores.
+        *
+        * Así evitamos mostrar sectores
+        * o agentes del área anterior
+        * mientras carga la nueva.
+        */
+        setSectores([]);
+        setAgentes([]);
+        setSectorId('');
+        setAgenteId('');
+        setError('');
+
         if (!areaId) {
-          setSectores([]);
-          setAgentes([]);
-          setSectorId('');
-          setAgenteId('');
           return;
         }
 
@@ -199,10 +253,6 @@ export default function NuevaSupervisionPage() {
           setCargandoTerritorio(
             true,
           );
-
-          setSectorId('');
-          setAgenteId('');
-
           const [
             sectoresData,
             agentesData,
@@ -223,7 +273,6 @@ export default function NuevaSupervisionPage() {
                 sector.activo,
             ),
           );
-
           setAgentes(
             agentesData.filter(
               (agente) =>
@@ -234,6 +283,17 @@ export default function NuevaSupervisionPage() {
           console.error(
             error,
           );
+
+          /*
+          * Ante cualquier error,
+          * mantenemos vacíos los datos
+          * territoriales para no mostrar
+          * información del área anterior.
+          */
+          setSectores([]);
+          setAgentes([]);
+          setSectorId('');
+          setAgenteId('');
 
           setError(
             'No se pudieron cargar los sectores y agentes del área seleccionada.',
@@ -697,34 +757,46 @@ export default function NuevaSupervisionPage() {
 
         <div className="grid gap-5 md:grid-cols-2">
 
-          <CampoSelect
-            label="Área operativa"
-            value={areaId}
-            onChange={
-              setAreaId
-            }
-          >
-            <option value="">
-              Seleccione un área
-            </option>
+          {esAdmin ? (
+            <CampoSelect
+              label="Área operativa"
+              value={areaId}
+              onChange={
+                setAreaId
+              }
+            >
+              <option value="">
+                Seleccione un área
+              </option>
 
-            {areas.map(
-              (area) => (
-                <option
-                  key={
-                    area.id
-                  }
-                  value={
-                    area.id
-                  }
-                >
-                  {
-                    area.nombre
-                  }
-                </option>
-              ),
-            )}
-          </CampoSelect>
+              {areas.map(
+                (area) => (
+                  <option
+                    key={
+                      area.id
+                    }
+                    value={
+                      area.id
+                    }
+                  >
+                    {
+                      area.nombre
+                    }
+                  </option>
+                ),
+              )}
+            </CampoSelect>
+) : (
+  <CampoTexto
+    label="Área operativa"
+    value={
+      usuario?.areaOperativa
+        ?.nombre ??
+      'Sin área asignada'
+    }
+    readOnly
+  />
+)}
           <CampoSelect
             label="Sector"
             value={sectorId}

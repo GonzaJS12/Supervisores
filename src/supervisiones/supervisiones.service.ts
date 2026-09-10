@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Clasificacion, Prisma, RolUsuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrearSupervisionDto } from './dto/crear-supervision.dto';
@@ -57,6 +57,20 @@ export class SupervisionesService {
         'El supervisor no existe o está inactivo',
       );
     }
+    /*
+      * Si quien crea la supervisión
+      * tiene rol SUPERVISOR, debe tener
+      * un área operativa asignada.
+      */
+      if (
+        supervisor.rol ===
+          RolUsuario.SUPERVISOR &&
+        supervisor.areaOperativaId == null
+      ) {
+        throw new ForbiddenException(
+          'El supervisor no tiene un área operativa asignada',
+        );
+      }
 
     /*
      * 2. Verificar agente
@@ -79,6 +93,33 @@ export class SupervisionesService {
         'No se puede crear una supervisión para un agente inactivo',
       );
     }
+    /*
+    * Un SUPERVISOR solamente puede
+    * supervisar agentes pertenecientes
+    * a su área operativa asignada.
+    */
+    if (
+      supervisor.rol ===
+        RolUsuario.SUPERVISOR &&
+      agente.areaOperativaId !==
+        supervisor.areaOperativaId
+      ) {
+        throw new ForbiddenException(
+          'No puede supervisar un agente de otra área operativa',
+        );
+      }
+      /*
+      * Para SUPERVISOR usamos siempre
+      * el área que tiene asignada.
+      *
+      * Para ADMIN se mantiene el área
+      * enviada en el formulario.
+      */
+      const areaOperativaId =
+        supervisor.rol ===
+        RolUsuario.SUPERVISOR
+          ? supervisor.areaOperativaId!
+          : dto.areaOperativaId;
 
     /*
      * 3. Verificar área operativa
@@ -86,7 +127,7 @@ export class SupervisionesService {
     const area =
       await this.prisma.areaOperativa.findUnique({
         where: {
-          id: dto.areaOperativaId,
+          id:areaOperativaId,
         },
       });
 
@@ -105,7 +146,7 @@ export class SupervisionesService {
      */
     if (
       agente.areaOperativaId !==
-      dto.areaOperativaId
+      areaOperativaId
     ) {
       throw new BadRequestException(
         'El agente sanitario no pertenece al área operativa seleccionada',
@@ -192,7 +233,7 @@ export class SupervisionesService {
        */
       if (
         sector.areaOperativaId !==
-        dto.areaOperativaId
+        areaOperativaId
       ) {
         throw new BadRequestException(
           'El sector no pertenece al área operativa seleccionada',
@@ -330,7 +371,7 @@ export class SupervisionesService {
               supervisorId,
 
               areaOperativaId:
-                dto.areaOperativaId,
+                areaOperativaId,
 
               /*
                * Puede ser un ID
@@ -1081,14 +1122,36 @@ export class SupervisionesService {
       );
 
     const [
+      totalAgentes,
+      totalAgentesActivos,
       totalSupervisiones,
       supervisionesMes,
       promedio,
       porClasificacion,
       ultimasSupervisiones,
     ] = await Promise.all([
+      /*
+       * TOTAL DE AGENTES
+       */
+      this.prisma.agenteSanitario.count(),
+
+      /*
+       * TOTAL DE AGENTES ACTIVOS
+       */
+      this.prisma.agenteSanitario.count({
+        where: {
+          activo: true,
+        },
+      }),
+
+      /*
+      * TOTAL DE SUPERVISIONES
+      */
       this.prisma.supervision.count(),
 
+      /*
+      * SUPERVISIONES DEL MES
+      */
       this.prisma.supervision.count({
         where: {
           fecha: {
@@ -1097,12 +1160,19 @@ export class SupervisionesService {
         },
       }),
 
+      /*
+      * PROMEDIO GENERAL
+      */
       this.prisma.supervision.aggregate({
         _avg: {
           promedio: true,
         },
       }),
 
+      /*
+      * SUPERVISIONES POR
+      * CLASIFICACIÓN
+      */
       this.prisma.supervision.groupBy({
         by: [
           'clasificacion',
@@ -1113,6 +1183,9 @@ export class SupervisionesService {
         },
       }),
 
+      /*
+      * ÚLTIMAS 5 SUPERVISIONES
+      */
       this.prisma.supervision.findMany({
         take: 5,
 
@@ -1155,8 +1228,7 @@ export class SupervisionesService {
           ronda: {
             select: {
               id: true,
-              externalRondaId:
-                true,
+              externalRondaId: true,
               nombre: true,
             },
           },
@@ -1165,6 +1237,15 @@ export class SupervisionesService {
     ]);
 
     return {
+      /*
+      * MÉTRICAS DE AGENTES
+      */
+      totalAgentes,
+      totalAgentesActivos,
+
+      /*
+      * MÉTRICAS DE SUPERVISIONES
+      */
       totalSupervisiones,
 
       supervisionesMes,

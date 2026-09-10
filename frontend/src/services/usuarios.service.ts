@@ -1,11 +1,15 @@
-import { api } from './api';
+import {
+  api,
+} from './api';
 
 import type {
   CrearUsuarioRequest,
   UsuarioAdmin,
-  RolUsuario,
 } from '../types/usuario';
 
+/*
+ * LISTAR USUARIOS
+ */
 export const obtenerUsuarios =
   async (): Promise<UsuarioAdmin[]> => {
     const response =
@@ -16,6 +20,9 @@ export const obtenerUsuarios =
     return response.data;
   };
 
+/*
+ * OBTENER USUARIO POR ID
+ */
 export const obtenerUsuarioPorId =
   async (
     id: number,
@@ -28,6 +35,9 @@ export const obtenerUsuarioPorId =
     return response.data;
   };
 
+/*
+ * CREAR USUARIO
+ */
 export const crearUsuario =
   async (
     datos: CrearUsuarioRequest,
@@ -40,7 +50,42 @@ export const crearUsuario =
 
     return response.data;
   };
-  export const cambiarEstadoUsuario =
+
+/*
+ * DATOS QUE SE PUEDEN MODIFICAR.
+ *
+ * El rol NO forma parte de esta
+ * interfaz porque ya no permitimos
+ * modificarlo.
+ */
+export interface ModificarUsuarioRequest {
+  nombre: string;
+  apellido: string;
+  email: string;
+  areaOperativaId?: number;
+}
+
+/*
+ * MODIFICAR USUARIO
+ */
+export const modificarUsuario =
+  async (
+    id: number,
+    datos: ModificarUsuarioRequest,
+  ): Promise<UsuarioAdmin> => {
+    const response =
+      await api.patch<UsuarioAdmin>(
+        `/usuarios/${id}`,
+        datos,
+      );
+
+    return response.data;
+  };
+
+/*
+ * ACTIVAR / DESACTIVAR USUARIO
+ */
+export const cambiarEstadoUsuario =
   async (
     id: number,
     activo: boolean,
@@ -55,22 +100,11 @@ export const crearUsuario =
 
     return response.data;
   };
-  export const cambiarRolUsuario =
-  async (
-    id: number,
-    rol: RolUsuario,
-  ): Promise<UsuarioAdmin> => {
-    const response =
-      await api.patch<UsuarioAdmin>(
-        `/usuarios/${id}/rol`,
-        {
-          rol,
-        },
-      );
 
-    return response.data;
-  };
-  export const cambiarPasswordUsuario =
+/*
+ * CAMBIAR CONTRASEÑA
+ */
+export const cambiarPasswordUsuario =
   async (
     id: number,
     password: string,

@@ -24,6 +24,16 @@ export class AuthService {
         where: {
           email: dto.email,
         },
+
+        include: {
+          areaOperativa: {
+            select: {
+              id: true,
+              externalAreaId: true,
+              nombre: true,
+            },
+          },
+        },
       });
 
     // 1. Verificamos que el usuario exista
@@ -76,6 +86,12 @@ export class AuthService {
         apellido: usuario.apellido,
         email: usuario.email,
         rol: usuario.rol,
+
+        areaOperativaId:
+          usuario.areaOperativaId,
+
+        areaOperativa:
+          usuario.areaOperativa,
       },
     };
   }

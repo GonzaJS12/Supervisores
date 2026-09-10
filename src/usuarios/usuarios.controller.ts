@@ -1,15 +1,55 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { RolUsuario } from '@prisma/client';
-import { UsuariosService } from './usuarios.service';
-import { CrearUsuarioDto } from './dto/crear-usuario.dto';
-import { CambiarPasswordDto } from './dto/cambiar-password.dto';
-import { CambiarRolDto } from './dto/cambiar-rol.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+
+import {
+  RolUsuario,
+} from '@prisma/client';
+
+import {
+  UsuariosService,
+} from './usuarios.service';
+
+import {
+  CrearUsuarioDto,
+} from './dto/crear-usuario.dto';
+
+import {
+  CambiarPasswordDto,
+} from './dto/cambiar-password.dto';
+
+import {
+  CambiarAreaOperativaDto,
+} from './dto/cambiar-area-operativa.dto';
+
+import {
+  ModificarUsuarioDto,
+} from './dto/modificar-usuario.dto';
+
+import {
+  JwtAuthGuard,
+} from '../auth/guards/jwt-auth.guard';
+
+import {
+  RolesGuard,
+} from '../auth/guards/roles.guard';
+
+import {
+  Roles,
+} from '../auth/decorators/roles.decorator';
 
 @Controller('usuarios')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+)
 export class UsuariosController {
   constructor(
     private readonly usuariosService:
@@ -31,9 +71,8 @@ export class UsuariosController {
     )
     id: number,
   ) {
-    return this.usuariosService.buscarPorId(
-      id,
-    );
+    return this.usuariosService
+      .buscarPorId(id);
   }
 
   @Post()
@@ -42,9 +81,32 @@ export class UsuariosController {
     @Body()
     dto: CrearUsuarioDto,
   ) {
-    return this.usuariosService.crear(
-      dto,
-    );
+    return this.usuariosService
+      .crear(dto);
+  }
+
+  /*
+   * MODIFICAR DATOS DEL USUARIO
+   *
+   * El rol NO se modifica.
+   */
+  @Patch(':id')
+  @Roles(RolUsuario.ADMIN)
+  modificar(
+    @Param(
+      'id',
+      ParseIntPipe,
+    )
+    id: number,
+
+    @Body()
+    dto: ModificarUsuarioDto,
+  ) {
+    return this.usuariosService
+      .modificar(
+        id,
+        dto,
+      );
   }
 
   @Patch(':id/password')
@@ -59,10 +121,11 @@ export class UsuariosController {
     @Body()
     dto: CambiarPasswordDto,
   ) {
-    return this.usuariosService.cambiarPassword(
-      id,
-      dto.password,
-    );
+    return this.usuariosService
+      .cambiarPassword(
+        id,
+        dto.password,
+      );
   }
 
   @Patch(':id/estado')
@@ -79,15 +142,21 @@ export class UsuariosController {
       activo: boolean;
     },
   ) {
-    return this.usuariosService.cambiarEstado(
-      id,
-      body.activo,
-    );
+    return this.usuariosService
+      .cambiarEstado(
+        id,
+        body.activo,
+      );
   }
 
-  @Patch(':id/rol')
+  /*
+   * Conservamos este endpoint porque
+   * sigue siendo útil para cambiar
+   * únicamente el área de un supervisor.
+   */
+  @Patch(':id/area-operativa')
   @Roles(RolUsuario.ADMIN)
-  cambiarRol(
+  cambiarAreaOperativa(
     @Param(
       'id',
       ParseIntPipe,
@@ -95,19 +164,12 @@ export class UsuariosController {
     id: number,
 
     @Body()
-    dto: CambiarRolDto,
-
-    @Req()
-    request: {
-      user: {
-        id: number;
-      };
-    },
+    dto: CambiarAreaOperativaDto,
   ) {
-    return this.usuariosService.cambiarRol(
-      id,
-      dto.rol,
-      request.user.id,
-    );
+    return this.usuariosService
+      .cambiarAreaOperativa(
+        id,
+        dto.areaOperativaId,
+      );
   }
 }

@@ -8,10 +8,6 @@ import {
 } from 'react-router-dom';
 
 import {
-  obtenerAgentes,
-} from '../../services/agentes.service';
-
-import {
   obtenerMetricasGlobales,
   obtenerMisMetricas,
   obtenerSupervisionesParaExportacion,
@@ -24,10 +20,6 @@ import {
 import type {
   MetricasSupervision,
 } from '../../services/supervisiones.service';
-
-import type {
-  AgenteSanitario,
-} from '../../types/agente';
 
 import {
   useAuth,
@@ -51,14 +43,7 @@ export default function DashboardPage() {
       null,
     );
 
-  const [
-    agentes,
-    setAgentes,
-  ] = useState<
-    AgenteSanitario[]
-  >([]);
-
-  const [
+    const [
     cargando,
     setCargando,
   ] = useState(true);
@@ -81,20 +66,11 @@ export default function DashboardPage() {
           setError('');
 
           if (esAdmin) {
-            const [
-              datosMetricas,
-              datosAgentes,
-            ] = await Promise.all([
-              obtenerMetricasGlobales(),
-              obtenerAgentes(),
-            ]);
+            const datosMetricas =
+              await obtenerMetricasGlobales();
 
             setMetricas(
               datosMetricas,
-            );
-
-            setAgentes(
-              datosAgentes,
             );
           } else {
             const datosMetricas =
@@ -103,8 +79,6 @@ export default function DashboardPage() {
             setMetricas(
               datosMetricas,
             );
-
-            setAgentes([]);
           }
         } catch (error) {
           console.error(error);
@@ -119,12 +93,7 @@ export default function DashboardPage() {
 
     cargarDatos();
   }, [esAdmin]);
-
-  const agentesActivos =
-    agentes.filter(
-      agente => agente.activo,
-    ).length;
-  
+ 
   const handleExportarMisSupervisiones =
     async () => {
       if (esAdmin) {
@@ -222,7 +191,8 @@ export default function DashboardPage() {
                 <TarjetaResumen
                   titulo="Agentes"
                   valor={
-                    agentes.length
+                    metricas.totalAgentes ??
+                    0
                   }
                   descripcion="Registrados"
                 />
@@ -230,7 +200,8 @@ export default function DashboardPage() {
                 <TarjetaResumen
                   titulo="Agentes activos"
                   valor={
-                    agentesActivos
+                    metricas.totalAgentesActivos ??
+                    0
                   }
                   descripcion="Actualmente activos"
                 />

@@ -1,19 +1,37 @@
-import { BadRequestException,ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  RolUsuario,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { CrearUsuarioDto } from './dto/crear-usuario.dto';
-import { RolUsuario } from '@prisma/client';
+
+import {
+  PrismaService,
+} from '../prisma/prisma.service';
+import {
+  CrearUsuarioDto,
+} from './dto/crear-usuario.dto';
+import {
+  ModificarUsuarioDto,
+} from './dto/modificar-usuario.dto';
 
 @Injectable()
 export class UsuariosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   async crear(dto: CrearUsuarioDto) {
-    const usuarioExistente = await this.prisma.usuario.findUnique({
-      where: {
-        email: dto.email,
-      },
-    });
+    const usuarioExistente =
+      await this.prisma.usuario.findUnique({
+        where: {
+          email: dto.email,
+        },
+      });
 
     if (usuarioExistente) {
       throw new ConflictException(
@@ -21,26 +39,71 @@ export class UsuariosService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    let areaOperativaId: number | null =
+      null;
 
-    const usuario = await this.prisma.usuario.create({
-      data: {
-        nombre: dto.nombre,
-        apellido: dto.apellido,
-        email: dto.email,
-        passwordHash,
-        rol: dto.rol,
-      },
-    });
+    if (
+      dto.rol === RolUsuario.SUPERVISOR
+    ) {
+      if (!dto.areaOperativaId) {
+        throw new BadRequestException(
+          'Debe asignar un área operativa al supervisor',
+        );
+      }
 
-    return {
-      id: usuario.id,
-      nombre: usuario.nombre,
-      apellido: usuario.apellido,
-      email: usuario.email,
-      rol: usuario.rol,
-      activo: usuario.activo,
-    };
+      const area =
+        await this.prisma.areaOperativa.findFirst({
+          where: {
+            id: dto.areaOperativaId,
+            activo: true,
+          },
+        });
+
+      if (!area) {
+        throw new BadRequestException(
+          'El área operativa seleccionada no existe o está inactiva',
+        );
+      }
+
+      areaOperativaId =
+        dto.areaOperativaId;
+    }
+
+    const passwordHash =
+      await bcrypt.hash(
+        dto.password,
+        10,
+      );
+
+    const usuario =
+      await this.prisma.usuario.create({
+        data: {
+          nombre: dto.nombre,
+          apellido: dto.apellido,
+          email: dto.email,
+          passwordHash,
+          rol: dto.rol,
+          areaOperativaId,
+        },
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          email: true,
+          rol: true,
+          activo: true,
+          areaOperativaId: true,
+          areaOperativa: {
+            select: {
+              id: true,
+              externalAreaId: true,
+              nombre: true,
+            },
+          },
+        },
+      });
+
+    return usuario;
   }
 
   async listar() {
@@ -52,6 +115,14 @@ export class UsuariosService {
         email: true,
         rol: true,
         activo: true,
+        areaOperativaId: true,
+        areaOperativa: {
+          select: {
+            id: true,
+            externalAreaId: true,
+            nombre: true,
+          },
+        },
         createdAt: true,
       },
       orderBy: {
@@ -59,6 +130,7 @@ export class UsuariosService {
       },
     });
   }
+
   async buscarPorId(id: number) {
     const usuario =
       await this.prisma.usuario.findUnique({
@@ -72,6 +144,14 @@ export class UsuariosService {
           email: true,
           rol: true,
           activo: true,
+          areaOperativaId: true,
+          areaOperativa: {
+            select: {
+              id: true,
+              externalAreaId: true,
+              nombre: true,
+            },
+          },
           createdAt: true,
           updatedAt: true,
         },
@@ -85,6 +165,133 @@ export class UsuariosService {
 
     return usuario;
   }
+
+  async modificar(
+    id: number,
+    dto: ModificarUsuarioDto,
+  ) {
+    /*
+    * Verificamos que el usuario exista.
+    */
+    const usuario =
+      await this.prisma.usuario.findUnique({
+        where: {
+          id,
+        },
+      });
+
+    if (!usuario) {
+      throw new NotFoundException(
+        'Usuario no encontrado',
+      );
+    }
+
+    /*
+     * Evitamos que otro usuario tenga
+     * el mismo email.
+      */
+    const usuarioConEmail =
+      await this.prisma.usuario.findFirst({
+        where: {
+          email: dto.email,
+          id: {
+            not: id,
+          },
+        },
+      });
+
+    if (usuarioConEmail) {
+      throw new ConflictException(
+        'Ya existe un usuario con ese email',
+      );
+    }
+
+    let areaOperativaId:
+      number | null = null;
+
+    /*
+    * El rol NO se recibe desde el frontend.
+    *
+    * Utilizamos el rol que el usuario
+    * ya tiene almacenado en la base.
+    */
+    if (
+      usuario.rol ===
+      RolUsuario.SUPERVISOR
+    ) {
+      if (!dto.areaOperativaId) {
+        throw new BadRequestException(
+          'Debe asignar un área operativa al supervisor',
+        );
+      }
+
+      const area =
+        await this.prisma.areaOperativa
+          .findFirst({
+            where: {
+              id: dto.areaOperativaId,
+              activo: true,
+            },
+          });
+
+      if (!area) {
+        throw new BadRequestException(
+          'El área operativa seleccionada no existe o está inactiva',
+        );
+      }
+
+      areaOperativaId =
+        dto.areaOperativaId;
+    }
+
+    /*
+    * Si es ADMIN:
+    *
+    * areaOperativaId queda en null.
+    *
+    * Si es SUPERVISOR:
+    *
+    * queda el área seleccionada.
+    */
+    return this.prisma.usuario.update({
+      where: {
+        id,
+      },
+
+      data: {
+        nombre: dto.nombre.trim(),
+        apellido: dto.apellido.trim(),
+        email:
+          dto.email
+            .trim()
+            .toLowerCase(),
+
+        areaOperativaId,
+      },
+
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        email: true,
+        rol: true,
+        activo: true,
+        areaOperativaId: true,
+
+        areaOperativa: {
+          select: {
+            id: true,
+            externalAreaId: true,
+            nombre: true,
+          },
+        },
+
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
   async cambiarEstado(
     id: number,
     activo: boolean,
@@ -116,19 +323,30 @@ export class UsuariosService {
         email: true,
         rol: true,
         activo: true,
+        areaOperativaId: true,
+        areaOperativa: {
+          select: {
+            id: true,
+            externalAreaId: true,
+            nombre: true,
+          },
+        },
         createdAt: true,
         updatedAt: true,
       },
     });
   }
+
   async cambiarPassword(
     usuarioId: number,
-    nuevaPassword: string,) {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: {
-        id: usuarioId,
-      },
-    });
+    nuevaPassword: string,
+  ) {
+    const usuario =
+      await this.prisma.usuario.findUnique({
+        where: {
+          id: usuarioId,
+        },
+      });
 
     if (!usuario) {
       throw new NotFoundException(
@@ -136,10 +354,11 @@ export class UsuariosService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(
-      nuevaPassword,
-      10,
-    );
+    const passwordHash =
+      await bcrypt.hash(
+        nuevaPassword,
+        10,
+      );
 
     return this.prisma.usuario.update({
       where: {
@@ -155,14 +374,15 @@ export class UsuariosService {
         email: true,
         rol: true,
         activo: true,
+        areaOperativaId: true,
       },
     });
   }
-  async cambiarRol(
-    usuarioId: number,
-    nuevoRol: RolUsuario,
-    administradorId: number,
-  ) {
+  
+  async cambiarAreaOperativa(
+  usuarioId: number,
+  areaOperativaId: number,
+) {
   const usuario =
     await this.prisma.usuario.findUnique({
       where: {
@@ -177,18 +397,25 @@ export class UsuariosService {
   }
 
   if (
-    usuarioId === administradorId
+    usuario.rol !==
+    RolUsuario.SUPERVISOR
   ) {
     throw new BadRequestException(
-      'No puede modificar su propio rol',
+      'Solo se puede asignar un área operativa a un supervisor',
     );
   }
 
-  if (
-    usuario.rol === nuevoRol
-  ) {
+  const areaOperativa =
+    await this.prisma.areaOperativa.findFirst({
+      where: {
+        id: areaOperativaId,
+        activo: true,
+      },
+    });
+
+  if (!areaOperativa) {
     throw new BadRequestException(
-      'El usuario ya posee ese rol',
+      'El área operativa seleccionada no existe o está inactiva',
     );
   }
 
@@ -196,11 +423,9 @@ export class UsuariosService {
     where: {
       id: usuarioId,
     },
-
     data: {
-      rol: nuevoRol,
+      areaOperativaId,
     },
-
     select: {
       id: true,
       nombre: true,
@@ -208,6 +433,14 @@ export class UsuariosService {
       email: true,
       rol: true,
       activo: true,
+      areaOperativaId: true,
+      areaOperativa: {
+        select: {
+          id: true,
+          externalAreaId: true,
+          nombre: true,
+        },
+      },
       createdAt: true,
       updatedAt: true,
     },

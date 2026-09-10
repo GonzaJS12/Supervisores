@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
 } from 'react';
 
@@ -10,6 +11,14 @@ import {
   crearUsuario,
 } from '../../services/usuarios.service';
 
+import {
+  obtenerAreasOperativas,
+} from '../../services/areas-operativas.service';
+
+import type {
+  AreaOperativa,
+} from '../../services/areas-operativas.service';
+
 import type {
   RolUsuario,
 } from '../../types/usuario';
@@ -17,29 +26,106 @@ import type {
 export default function NuevoUsuarioPage() {
   const navigate = useNavigate();
 
-  const [nombre, setNombre] =
-    useState('');
+  const [
+    nombre,
+    setNombre,
+  ] = useState('');
 
-  const [apellido, setApellido] =
-    useState('');
+  const [
+    apellido,
+    setApellido,
+  ] = useState('');
 
-  const [email, setEmail] =
-    useState('');
+  const [
+    email,
+    setEmail,
+  ] = useState('');
 
-  const [password, setPassword] =
-    useState('');
+  const [
+    password,
+    setPassword,
+  ] = useState('');
 
-  const [confirmarPassword, setConfirmarPassword] =
-    useState('');
+  const [
+    confirmarPassword,
+    setConfirmarPassword,
+  ] = useState('');
 
-  const [rol, setRol] =
-    useState<RolUsuario>('SUPERVISOR');
+  const [
+    rol,
+    setRol,
+  ] = useState<RolUsuario>(
+    'SUPERVISOR',
+  );
 
-  const [guardando, setGuardando] =
-    useState(false);
+  const [
+    areaOperativaId,
+    setAreaOperativaId,
+  ] = useState('');
 
-  const [error, setError] =
-    useState('');
+  const [
+    areas,
+    setAreas,
+  ] = useState<AreaOperativa[]>([]);
+
+  const [
+    cargandoAreas,
+    setCargandoAreas,
+  ] = useState(false);
+
+  const [
+    guardando,
+    setGuardando,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState('');
+
+  /*
+   * CARGAR ÁREAS OPERATIVAS
+   */
+  useEffect(() => {
+    const cargarAreas =
+      async () => {
+        try {
+          setCargandoAreas(true);
+
+          const datos =
+            await obtenerAreasOperativas();
+
+          setAreas(
+            datos.filter(
+              (area) =>
+                area.activo,
+            ),
+          );
+        } catch (error) {
+          console.error(error);
+
+          setError(
+            'No se pudieron cargar las áreas operativas.',
+          );
+        } finally {
+          setCargandoAreas(false);
+        }
+      };
+
+    cargarAreas();
+  }, []);
+
+  /*
+   * SI CAMBIA A ADMIN,
+   * EL ÁREA NO CORRESPONDE
+   */
+  useEffect(() => {
+    if (
+      rol === 'ADMIN'
+    ) {
+      setAreaOperativaId('');
+    }
+  }, [rol]);
 
   const handleSubmit = async (
     event: React.FormEvent,
@@ -61,6 +147,31 @@ export default function NuevoUsuarioPage() {
       return;
     }
 
+    /*
+     * TODO SUPERVISOR DEBE
+     * TENER UN ÁREA ASIGNADA
+     */
+    if (
+      rol === 'SUPERVISOR' &&
+      !areaOperativaId
+    ) {
+      setError(
+        'Seleccione el área operativa del supervisor.',
+      );
+
+      return;
+    }
+
+    if (
+      password.length < 8
+    ) {
+      setError(
+        'La contraseña debe tener al menos 8 caracteres.',
+      );
+
+      return;
+    }
+
     if (
       password !==
       confirmarPassword
@@ -76,21 +187,46 @@ export default function NuevoUsuarioPage() {
       setGuardando(true);
 
       await crearUsuario({
-        nombre: nombre.trim(),
-        apellido: apellido.trim(),
-        email: email
-          .trim()
-          .toLowerCase(),
+        nombre:
+          nombre.trim(),
+
+        apellido:
+          apellido.trim(),
+
+        email:
+          email
+            .trim()
+            .toLowerCase(),
+
         password,
+
         rol,
+
+        /*
+         * SOLO LOS SUPERVISORES
+         * RECIBEN ÁREA OPERATIVA
+         */
+        ...(rol ===
+        'SUPERVISOR'
+          ? {
+              areaOperativaId:
+                Number(
+                  areaOperativaId,
+                ),
+            }
+          : {}),
       });
 
-      navigate('/admin/usuarios');
+      navigate(
+        '/admin/usuarios',
+      );
     } catch (error) {
       console.error(error);
 
       setError(
-        obtenerMensajeError(error),
+        obtenerMensajeError(
+          error,
+        ),
       );
     } finally {
       setGuardando(false);
@@ -99,24 +235,27 @@ export default function NuevoUsuarioPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
+      {/* ENCABEZADO */}
 
       <div className="mb-6">
-
         <h1 className="text-2xl font-bold text-slate-800">
           Nuevo usuario
         </h1>
 
         <p className="mt-1 text-sm text-slate-500">
-          Crear una cuenta para acceder al sistema.
+          Crear una cuenta para acceder
+          al sistema.
         </p>
-
       </div>
 
+      {/* FORMULARIO */}
+
       <form
-        onSubmit={handleSubmit}
+        onSubmit={
+          handleSubmit
+        }
         className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
       >
-
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
@@ -124,25 +263,34 @@ export default function NuevoUsuarioPage() {
         )}
 
         <div className="grid gap-5 sm:grid-cols-2">
+          {/* NOMBRE */}
 
           <CampoTexto
             label="Nombre"
             value={nombre}
-            onChange={setNombre}
+            onChange={
+              setNombre
+            }
             required
           />
+
+          {/* APELLIDO */}
 
           <CampoTexto
             label="Apellido"
             value={apellido}
-            onChange={setApellido}
+            onChange={
+              setApellido
+            }
             required
           />
 
-          <div className="sm:col-span-2">
+          {/* EMAIL */}
 
+          <div className="sm:col-span-2">
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Email
+
               <span className="text-red-500">
                 {' '}*
               </span>
@@ -151,27 +299,32 @@ export default function NuevoUsuarioPage() {
             <input
               type="email"
               value={email}
-              onChange={(event) =>
+              onChange={(
+                event,
+              ) =>
                 setEmail(
-                  event.target.value,
+                  event.target
+                    .value,
                 )
               }
               required
               className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               placeholder="usuario@correo.com"
             />
-
           </div>
 
-          <div>
+          {/* ROL */}
 
+          <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Rol
             </label>
 
             <select
               value={rol}
-              onChange={(event) =>
+              onChange={(
+                event,
+              ) =>
                 setRol(
                   event.target
                     .value as RolUsuario,
@@ -187,16 +340,86 @@ export default function NuevoUsuarioPage() {
                 Administrador
               </option>
             </select>
-
           </div>
 
-          <div className="hidden sm:block" />
+          {/* ÁREA OPERATIVA */}
+
+          {rol ===
+          'SUPERVISOR' ? (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Área operativa
+
+                <span className="text-red-500">
+                  {' '}*
+                </span>
+              </label>
+
+              <select
+                value={
+                  areaOperativaId
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setAreaOperativaId(
+                    event.target
+                      .value,
+                  )
+                }
+                required
+                disabled={
+                  cargandoAreas
+                }
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+              >
+                <option value="">
+                  {cargandoAreas
+                    ? 'Cargando áreas...'
+                    : 'Seleccione un área'}
+                </option>
+
+                {areas.map(
+                  (area) => (
+                    <option
+                      key={
+                        area.id
+                      }
+                      value={
+                        area.id
+                      }
+                    >
+                      {
+                        area.nombre
+                      }
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Área operativa
+              </label>
+
+              <div className="flex min-h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                No corresponde
+              </div>
+            </div>
+          )}
+
+          {/* CONTRASEÑA */}
 
           <CampoPassword
             label="Contraseña"
             value={password}
-            onChange={setPassword}
+            onChange={
+              setPassword
+            }
           />
+
+          {/* CONFIRMAR CONTRASEÑA */}
 
           <CampoPassword
             label="Confirmar contraseña"
@@ -207,11 +430,11 @@ export default function NuevoUsuarioPage() {
               setConfirmarPassword
             }
           />
-
         </div>
 
-        <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:justify-end">
+        {/* BOTONES */}
 
+        <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={() =>
@@ -219,7 +442,9 @@ export default function NuevoUsuarioPage() {
                 '/admin/usuarios',
               )
             }
-            disabled={guardando}
+            disabled={
+              guardando
+            }
             className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
           >
             Cancelar
@@ -227,28 +452,37 @@ export default function NuevoUsuarioPage() {
 
           <button
             type="submit"
-            disabled={guardando}
+            disabled={
+              guardando ||
+              (
+                rol ===
+                  'SUPERVISOR' &&
+                cargandoAreas
+              )
+            }
             className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {guardando
               ? 'Guardando...'
               : 'Crear usuario'}
           </button>
-
         </div>
-
       </form>
-
     </div>
   );
 }
 
+/*
+ * CAMPO DE TEXTO
+ */
 interface CampoTextoProps {
   label: string;
   value: string;
+
   onChange: (
     value: string,
   ) => void;
+
   required?: boolean;
 }
 
@@ -260,7 +494,6 @@ function CampoTexto({
 }: CampoTextoProps) {
   return (
     <div>
-
       <label className="mb-2 block text-sm font-medium text-slate-700">
         {label}
 
@@ -274,22 +507,29 @@ function CampoTexto({
       <input
         type="text"
         value={value}
-        onChange={(event) =>
+        onChange={(
+          event,
+        ) =>
           onChange(
             event.target.value,
           )
         }
-        required={required}
+        required={
+          required
+        }
         className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
-
     </div>
   );
 }
 
+/*
+ * CAMPO PASSWORD
+ */
 interface CampoPasswordProps {
   label: string;
   value: string;
+
   onChange: (
     value: string,
   ) => void;
@@ -302,9 +542,9 @@ function CampoPassword({
 }: CampoPasswordProps) {
   return (
     <div>
-
       <label className="mb-2 block text-sm font-medium text-slate-700">
         {label}
+
         <span className="text-red-500">
           {' '}*
         </span>
@@ -313,25 +553,31 @@ function CampoPassword({
       <input
         type="password"
         value={value}
-        onChange={(event) =>
+        onChange={(
+          event,
+        ) =>
           onChange(
             event.target.value,
           )
         }
         required
-        minLength={6}
+        minLength={8}
+        autoComplete="new-password"
         className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
-
     </div>
   );
 }
 
+/*
+ * MENSAJES DE ERROR
+ */
 function obtenerMensajeError(
   error: unknown,
 ): string {
   if (
-    typeof error === 'object' &&
+    typeof error ===
+      'object' &&
     error !== null &&
     'response' in error
   ) {
@@ -348,16 +594,22 @@ function obtenerMensajeError(
     ).response;
 
     const mensaje =
-      response?.data?.message;
+      response?.data
+        ?.message;
 
     if (
-      Array.isArray(mensaje)
+      Array.isArray(
+        mensaje,
+      )
     ) {
-      return mensaje.join(', ');
+      return mensaje.join(
+        ', ',
+      );
     }
 
     if (
-      typeof mensaje === 'string'
+      typeof mensaje ===
+      'string'
     ) {
       return mensaje;
     }

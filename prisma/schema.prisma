@@ -35,10 +35,16 @@ model Usuario {
   rol          RolUsuario
   activo       Boolean    @default(true)
 
+  areaOperativaId Int?
+
+  areaOperativa AreaOperativa? @relation(fields: [areaOperativaId], references: [id])
+
   supervisiones Supervision[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([areaOperativaId])
 }
 
 model Zona {
@@ -75,6 +81,7 @@ model AreaOperativa {
   agentes       AgenteSanitario[]
   sectores      Sector[]
   supervisiones Supervision[]
+  usuarios      Usuario[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

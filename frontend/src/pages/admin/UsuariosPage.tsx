@@ -3,6 +3,10 @@ import {
   useState,
 } from 'react';
 
+import {
+  useNavigate,
+} from 'react-router-dom';
+
 import type {
   UsuarioAdmin,
 } from '../../types/usuario';
@@ -10,19 +14,24 @@ import type {
 import {
   obtenerUsuarios,
 } from '../../services/usuarios.service';
-import {
-  useNavigate,
-} from 'react-router-dom';
 
 export default function UsuariosPage() {
-  const [usuarios, setUsuarios] =
-    useState<UsuarioAdmin[]>([]);
+  const navigate = useNavigate();
 
-  const [cargando, setCargando] =
-    useState(true);
+  const [
+    usuarios,
+    setUsuarios,
+  ] = useState<UsuarioAdmin[]>([]);
 
-  const [error, setError] =
-    useState('');
+  const [
+    cargando,
+    setCargando,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState('');
 
   useEffect(() => {
     cargarUsuarios();
@@ -48,15 +57,12 @@ export default function UsuariosPage() {
         setCargando(false);
       }
     };
-    const navigate = useNavigate();
 
   return (
     <div>
-
       {/* ENCABEZADO */}
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
             Usuarios
@@ -78,7 +84,6 @@ export default function UsuariosPage() {
         >
           Nuevo usuario
         </button>
-
       </div>
 
       {/* ERROR */}
@@ -92,29 +97,19 @@ export default function UsuariosPage() {
       {/* TABLA */}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
         {cargando ? (
-
           <div className="p-8 text-center text-slate-500">
             Cargando usuarios...
           </div>
-
         ) : usuarios.length === 0 ? (
-
           <div className="p-8 text-center text-slate-500">
             No hay usuarios registrados.
           </div>
-
         ) : (
-
           <div className="overflow-x-auto">
-
             <table className="w-full text-left text-sm">
-
               <thead className="border-b border-slate-200 bg-slate-50">
-
                 <tr>
-
                   <th className="px-6 py-4 font-semibold text-slate-600">
                     Usuario
                   </th>
@@ -128,68 +123,89 @@ export default function UsuariosPage() {
                   </th>
 
                   <th className="px-6 py-4 font-semibold text-slate-600">
+                    Área operativa
+                  </th>
+
+                  <th className="px-6 py-4 font-semibold text-slate-600">
                     Estado
                   </th>
 
                   <th className="px-6 py-4 text-right font-semibold text-slate-600">
                     Acciones
                   </th>
-
                 </tr>
-
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-
                 {usuarios.map(
                   (usuario) => (
-
                     <tr
-                      key={usuario.id}
+                      key={
+                        usuario.id
+                      }
                       className="hover:bg-slate-50"
                     >
+                      {/* USUARIO */}
 
                       <td className="px-6 py-4">
-
                         <p className="font-medium text-slate-800">
-                          {usuario.apellido},{' '}
-                          {usuario.nombre}
+                          {
+                            usuario.apellido
+                          }
+                          ,{' '}
+                          {
+                            usuario.nombre
+                          }
                         </p>
-
                       </td>
+
+                      {/* EMAIL */}
 
                       <td className="px-6 py-4 text-slate-600">
-                        {usuario.email}
+                        {
+                          usuario.email
+                        }
                       </td>
 
-                      <td className="px-6 py-4">
+                      {/* ROL */}
 
+                      <td className="px-6 py-4">
                         <RolBadge
-                          rol={usuario.rol}
+                          rol={
+                            usuario.rol
+                          }
                         />
-
                       </td>
 
+                      {/* ÁREA OPERATIVA */}
+
+                      <td className="px-6 py-4 text-slate-600">
+                        {usuario.rol ===
+                        'SUPERVISOR'
+                          ? usuario
+                              .areaOperativa
+                              ?.nombre ??
+                            'Sin área'
+                          : '—'}
+                      </td>
+
+                      {/* ESTADO */}
+
                       <td className="px-6 py-4">
-
                         {usuario.activo ? (
-
                           <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
                             Activo
                           </span>
-
                         ) : (
-
                           <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                             Inactivo
                           </span>
-
                         )}
-
                       </td>
 
-                      <td className="px-6 py-4 text-right">
+                      {/* ACCIONES */}
 
+                      <td className="px-6 py-4 text-right">
                         <button
                           type="button"
                           onClick={() =>
@@ -197,28 +213,19 @@ export default function UsuariosPage() {
                               `/admin/usuarios/${usuario.id}`,
                             )
                           }
-                          className="font-medium text-blue-600 transition hover:text-blue-800"
+                          className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
                         >
-                        Ver
+                          Modificar
                         </button>
-
                       </td>
-
                     </tr>
-
                   ),
                 )}
-
               </tbody>
-
             </table>
-
           </div>
-
         )}
-
       </div>
-
     </div>
   );
 }

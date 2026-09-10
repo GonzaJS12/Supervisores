@@ -7,6 +7,13 @@ import type {
 } from '../types/supervision';
 
 export interface MetricasSupervision {
+  /*
+   * Estas métricas solamente
+   * vienen informadas para ADMIN.
+   */
+  totalAgentes?: number;
+  totalAgentesActivos?: number;
+
   totalSupervisiones: number;
   supervisionesMes: number;
   promedioGeneral: number | null;

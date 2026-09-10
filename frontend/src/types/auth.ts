@@ -1,4 +1,11 @@
-export type RolUsuario = 'ADMIN' | 'SUPERVISOR';
+export type RolUsuario =
+  'ADMIN' | 'SUPERVISOR';
+
+export interface AreaOperativaUsuario {
+  id: number;
+  externalAreaId: number | null;
+  nombre: string;
+}
 
 export interface Usuario {
   id: number;
@@ -6,6 +13,12 @@ export interface Usuario {
   apellido: string;
   email: string;
   rol: RolUsuario;
+
+  areaOperativaId:
+    number | null;
+
+  areaOperativa:
+    AreaOperativaUsuario | null;
 }
 
 export interface LoginRequest {

@@ -1,35 +1,92 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { cambiarEstadoUsuario, cambiarPasswordUsuario, cambiarRolUsuario, obtenerUsuarioPorId,} from '../../services/usuarios.service';
-import type { RolUsuario, UsuarioAdmin } from '../../types/usuario';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
+
+import {
+  cambiarEstadoUsuario,
+  cambiarPasswordUsuario,
+  modificarUsuario,
+  obtenerUsuarioPorId,
+} from '../../services/usuarios.service';
+
+import {
+  obtenerAreasOperativas,
+} from '../../services/areas-operativas.service';
+
+import type {
+  AreaOperativa,
+} from '../../services/areas-operativas.service';
+
+import type {
+  UsuarioAdmin,
+} from '../../types/usuario';
 
 export default function DetalleUsuarioPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [usuario, setUsuario] =
-    useState<UsuarioAdmin | null>(null);
-
-  const [cargando, setCargando] =
-    useState(true);
-
-  // Error exclusivo para la carga inicial
-  const [error, setError] =
-    useState('');
-
-  // Estados para cambiar rol
   const [
-    cambiandoRol,
-    setCambiandoRol,
+    usuario,
+    setUsuario,
+  ] = useState<UsuarioAdmin | null>(
+    null,
+  );
+
+  const [
+    areas,
+    setAreas,
+  ] = useState<AreaOperativa[]>([]);
+
+  /*
+   * CAMPOS EDITABLES
+   */
+  const [
+    nombre,
+    setNombre,
+  ] = useState('');
+
+  const [
+    apellido,
+    setApellido,
+  ] = useState('');
+
+  const [
+    email,
+    setEmail,
+  ] = useState('');
+
+  const [
+    areaOperativaId,
+    setAreaOperativaId,
+  ] = useState('');
+
+  /*
+   * ESTADOS DE CARGA
+   */
+  const [
+    cargando,
+    setCargando,
+  ] = useState(true);
+
+  const [
+    guardando,
+    setGuardando,
   ] = useState(false);
 
-  // Estados para activar/desactivar
   const [
     cambiandoEstado,
     setCambiandoEstado,
   ] = useState(false);
 
-  // Estados para cambiar contraseña
+  /*
+   * CAMBIO DE CONTRASEÑA
+   */
   const [
     mostrarCambioPassword,
     setMostrarCambioPassword,
@@ -50,50 +107,219 @@ export default function DetalleUsuarioPage() {
     setCambiandoPassword,
   ] = useState(false);
 
-  // Mensajes generales de las acciones
-  const [mensaje, setMensaje] =
-    useState('');
+  /*
+   * MENSAJES
+   */
+  const [
+    error,
+    setError,
+  ] = useState('');
+
+  const [
+    mensaje,
+    setMensaje,
+  ] = useState('');
 
   const [
     errorAccion,
     setErrorAccion,
   ] = useState('');
 
+  /*
+   * CARGAR USUARIO
+   */
   useEffect(() => {
-    const cargarUsuario = async () => {
-      if (!id) {
-        setError(
-          'No se indicó un usuario.',
+    const cargarDatos =
+      async () => {
+        if (!id) {
+          setError(
+            'No se indicó un usuario.',
+          );
+
+          setCargando(false);
+          return;
+        }
+
+        try {
+          setCargando(true);
+          setError('');
+
+          const datos =
+            await obtenerUsuarioPorId(
+              Number(id),
+            );
+
+          setUsuario(datos);
+
+          setNombre(
+            datos.nombre,
+          );
+
+          setApellido(
+            datos.apellido,
+          );
+
+          setEmail(
+            datos.email,
+          );
+
+          setAreaOperativaId(
+            datos.areaOperativaId
+              ? String(
+                  datos.areaOperativaId,
+                )
+              : '',
+          );
+
+          /*
+           * Solo necesitamos cargar
+           * áreas si el usuario es
+           * SUPERVISOR.
+           */
+          if (
+            datos.rol ===
+            'SUPERVISOR'
+          ) {
+            const areasDatos =
+              await obtenerAreasOperativas();
+
+            setAreas(
+              areasDatos.filter(
+                (area) =>
+                  area.activo,
+              ),
+            );
+          }
+        } catch (error) {
+          console.error(error);
+
+          setError(
+            'No se pudo cargar el usuario.',
+          );
+        } finally {
+          setCargando(false);
+        }
+      };
+
+    cargarDatos();
+  }, [id]);
+
+  /*
+   * GUARDAR DATOS DEL USUARIO
+   */
+  const handleGuardar =
+    async (
+      event: React.FormEvent,
+    ) => {
+      event.preventDefault();
+
+      if (!usuario) {
+        return;
+      }
+
+      setMensaje('');
+      setErrorAccion('');
+
+      if (
+        !nombre.trim() ||
+        !apellido.trim() ||
+        !email.trim()
+      ) {
+        setErrorAccion(
+          'Complete nombre, apellido y email.',
         );
 
-        setCargando(false);
+        return;
+      }
+
+      if (
+        usuario.rol ===
+          'SUPERVISOR' &&
+        !areaOperativaId
+      ) {
+        setErrorAccion(
+          'Seleccione un área operativa.',
+        );
+
         return;
       }
 
       try {
-        setCargando(true);
-        setError('');
+        setGuardando(true);
 
-        const datos =
-          await obtenerUsuarioPorId(
-            Number(id),
+        const usuarioActualizado =
+          await modificarUsuario(
+            usuario.id,
+            {
+              nombre:
+                nombre.trim(),
+
+              apellido:
+                apellido.trim(),
+
+              email:
+                email
+                  .trim()
+                  .toLowerCase(),
+
+              ...(usuario.rol ===
+              'SUPERVISOR'
+                ? {
+                    areaOperativaId:
+                      Number(
+                        areaOperativaId,
+                      ),
+                  }
+                : {}),
+            },
           );
 
-        setUsuario(datos);
+        setUsuario(
+          usuarioActualizado,
+        );
+
+        setNombre(
+          usuarioActualizado.nombre,
+        );
+
+        setApellido(
+          usuarioActualizado.apellido,
+        );
+
+        setEmail(
+          usuarioActualizado.email,
+        );
+
+        setAreaOperativaId(
+          usuarioActualizado
+            .areaOperativaId
+            ? String(
+                usuarioActualizado
+                  .areaOperativaId,
+              )
+            : '',
+        );
+
+        setMensaje(
+          'Usuario actualizado correctamente.',
+        );
       } catch (error) {
         console.error(error);
 
-        setError(
-          'No se pudo cargar el usuario.',
+        setErrorAccion(
+          obtenerMensajeError(
+            error,
+            'No se pudo modificar el usuario.',
+          ),
         );
       } finally {
-        setCargando(false);
+        setGuardando(false);
       }
     };
 
-    cargarUsuario();
-  }, [id]);
-
+  /*
+   * ACTIVAR / DESACTIVAR
+   */
   const handleCambiarEstado =
     async () => {
       if (!usuario) {
@@ -119,7 +345,6 @@ export default function DetalleUsuarioPage() {
 
       try {
         setCambiandoEstado(true);
-
         setMensaje('');
         setErrorAccion('');
 
@@ -152,63 +377,25 @@ export default function DetalleUsuarioPage() {
       }
     };
 
-  const handleCambiarRol =
-    async () => {
-      if (!usuario) {
-        return;
-      }
+  /*
+   * MOSTRAR / OCULTAR
+   * CAMBIO DE CONTRASEÑA
+   */
+  const handleMostrarCambioPassword =
+    () => {
+      setMostrarCambioPassword(
+        !mostrarCambioPassword,
+      );
 
-      const nuevoRol: RolUsuario =
-        usuario.rol === 'ADMIN'
-          ? 'SUPERVISOR'
-          : 'ADMIN';
-
-      const nombreNuevoRol =
-        nuevoRol === 'ADMIN'
-          ? 'Administrador'
-          : 'Supervisor';
-
-      const confirmado =
-        window.confirm(
-          `¿Está seguro de cambiar el rol de ${usuario.nombre} ${usuario.apellido} a ${nombreNuevoRol}?`,
-        );
-
-      if (!confirmado) {
-        return;
-      }
-
-      try {
-        setCambiandoRol(true);
-        setMensaje('');
-        setErrorAccion('');
-
-        const usuarioActualizado =
-          await cambiarRolUsuario(
-            usuario.id,
-            nuevoRol,
-          );
-
-        setUsuario(
-          usuarioActualizado,
-        );
-
-        setMensaje(
-          `Rol actualizado correctamente a ${nombreNuevoRol}.`,
-        );
-      } catch (error) {
-        console.error(error);
-
-        setErrorAccion(
-          obtenerMensajeError(
-            error,
-            'No se pudo cambiar el rol del usuario.',
-          ),
-        );
-      } finally {
-        setCambiandoRol(false);
-      }
+      setNuevaPassword('');
+      setConfirmarPassword('');
+      setMensaje('');
+      setErrorAccion('');
     };
 
+  /*
+   * CAMBIAR CONTRASEÑA
+   */
   const handleCambiarPassword =
     async () => {
       if (!usuario) {
@@ -218,10 +405,23 @@ export default function DetalleUsuarioPage() {
       setMensaje('');
       setErrorAccion('');
 
-      if (!nuevaPassword.trim()) {
+      if (
+        !nuevaPassword.trim()
+      ) {
         setErrorAccion(
           'Ingrese una nueva contraseña.',
         );
+
+        return;
+      }
+
+      if (
+        nuevaPassword.length < 8
+      ) {
+        setErrorAccion(
+          'La contraseña debe tener al menos 8 caracteres.',
+        );
+
         return;
       }
 
@@ -232,11 +432,14 @@ export default function DetalleUsuarioPage() {
         setErrorAccion(
           'Las contraseñas no coinciden.',
         );
+
         return;
       }
 
       try {
-        setCambiandoPassword(true);
+        setCambiandoPassword(
+          true,
+        );
 
         await cambiarPasswordUsuario(
           usuario.id,
@@ -245,7 +448,10 @@ export default function DetalleUsuarioPage() {
 
         setNuevaPassword('');
         setConfirmarPassword('');
-        setMostrarCambioPassword(false);
+
+        setMostrarCambioPassword(
+          false,
+        );
 
         setMensaje(
           'Contraseña actualizada correctamente.',
@@ -260,22 +466,15 @@ export default function DetalleUsuarioPage() {
           ),
         );
       } finally {
-        setCambiandoPassword(false);
+        setCambiandoPassword(
+          false,
+        );
       }
     };
 
-  const handleMostrarCambioPassword =
-    () => {
-      setMostrarCambioPassword(
-        !mostrarCambioPassword,
-      );
-
-      setNuevaPassword('');
-      setConfirmarPassword('');
-      setMensaje('');
-      setErrorAccion('');
-    };
-
+  /*
+   * CARGANDO
+   */
   if (cargando) {
     return (
       <div className="text-slate-500">
@@ -284,7 +483,13 @@ export default function DetalleUsuarioPage() {
     );
   }
 
-  if (error || !usuario) {
+  /*
+   * ERROR DE CARGA
+   */
+  if (
+    error ||
+    !usuario
+  ) {
     return (
       <div>
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -309,18 +514,17 @@ export default function DetalleUsuarioPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-
       {/* ENCABEZADO */}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            {usuario.nombre}{' '}
-            {usuario.apellido}
+            Modificar usuario
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Información de la cuenta.
+            Modifique los datos de la
+            cuenta seleccionada.
           </p>
         </div>
 
@@ -337,7 +541,7 @@ export default function DetalleUsuarioPage() {
         </button>
       </div>
 
-      {/* MENSAJE DE ÉXITO */}
+      {/* MENSAJES */}
 
       {mensaje && (
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
@@ -345,55 +549,163 @@ export default function DetalleUsuarioPage() {
         </div>
       )}
 
-      {/* ERROR DE ACCIÓN */}
-
       {errorAccion && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {errorAccion}
         </div>
       )}
 
-      {/* DATOS DEL USUARIO */}
+      {/* FORMULARIO */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="mb-5 text-lg font-semibold text-slate-800">
+      <form
+        onSubmit={
+          handleGuardar
+        }
+        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+      >
+        <h2 className="text-lg font-semibold text-slate-800">
           Datos del usuario
         </h2>
 
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Dato
+        <p className="mt-1 text-sm text-slate-500">
+          El rol del usuario no puede
+          modificarse.
+        </p>
+
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+          {/* NOMBRE */}
+
+          <CampoTexto
             label="Nombre"
-            valor={usuario.nombre}
+            value={nombre}
+            onChange={
+              setNombre
+            }
+            required
           />
 
-          <Dato
+          {/* APELLIDO */}
+
+          <CampoTexto
             label="Apellido"
-            valor={usuario.apellido}
+            value={apellido}
+            onChange={
+              setApellido
+            }
+            required
           />
 
-          <Dato
-            label="Email"
-            valor={usuario.email}
-          />
+          {/* EMAIL */}
+
+          <div className="sm:col-span-2">
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Email
+              <span className="text-red-500">
+                {' '}*
+              </span>
+            </label>
+
+            <input
+              type="email"
+              value={email}
+              onChange={(
+                event,
+              ) =>
+                setEmail(
+                  event.target
+                    .value,
+                )
+              }
+              required
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          {/* ROL */}
 
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            <label className="mb-2 block text-sm font-medium text-slate-700">
               Rol
-            </p>
+            </label>
 
-            <div className="mt-2">
+            <div className="flex min-h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3">
               <RolBadge
-                rol={usuario.rol}
+                rol={
+                  usuario.rol
+                }
               />
             </div>
           </div>
 
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Estado
-            </p>
+          {/* ÁREA OPERATIVA */}
 
-            <div className="mt-2">
+          {usuario.rol ===
+          'SUPERVISOR' ? (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Área operativa
+                <span className="text-red-500">
+                  {' '}*
+                </span>
+              </label>
+
+              <select
+                value={
+                  areaOperativaId
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setAreaOperativaId(
+                    event.target
+                      .value,
+                  )
+                }
+                required
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="">
+                  Seleccione un área
+                </option>
+
+                {areas.map(
+                  (area) => (
+                    <option
+                      key={
+                        area.id
+                      }
+                      value={
+                        area.id
+                      }
+                    >
+                      {
+                        area.nombre
+                      }
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Área operativa
+              </label>
+
+              <div className="flex min-h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                No corresponde
+              </div>
+            </div>
+          )}
+
+          {/* ESTADO */}
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Estado
+            </label>
+
+            <div className="flex min-h-[42px] items-center">
               {usuario.activo ? (
                 <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
                   Activo
@@ -406,14 +718,39 @@ export default function DetalleUsuarioPage() {
             </div>
           </div>
 
-          <Dato
-            label="ID"
-            valor={
-              usuario.id.toString()
-            }
-          />
+          {/* ID */}
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              ID
+            </label>
+
+            <div className="flex min-h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+              {
+                usuario.id
+              }
+            </div>
+          </div>
         </div>
-      </section>
+
+        {/* GUARDAR */}
+
+        <div className="mt-8 flex justify-end border-t border-slate-100 pt-6">
+          <button
+            type="submit"
+            disabled={
+              guardando ||
+              cambiandoEstado ||
+              cambiandoPassword
+            }
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {guardando
+              ? 'Guardando...'
+              : 'Guardar cambios'}
+          </button>
+        </div>
+      </form>
 
       {/* ADMINISTRACIÓN */}
 
@@ -423,33 +760,12 @@ export default function DetalleUsuarioPage() {
         </h2>
 
         <p className="mt-1 text-sm text-slate-500">
-          Desde aquí podremos modificar el
-          estado, rol y contraseña del usuario.
+          Administración de contraseña
+          y estado de la cuenta.
         </p>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-
-          {/* CAMBIAR ROL */}
-
-          <button
-            type="button"
-            onClick={handleCambiarRol}
-            disabled={
-              cambiandoRol ||
-              cambiandoEstado ||
-              cambiandoPassword
-            }
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {cambiandoRol
-              ? 'Cambiando rol...'
-              : usuario.rol ===
-                  'ADMIN'
-                ? 'Cambiar a Supervisor'
-                : 'Cambiar a Administrador'}
-          </button>
-
-          {/* CAMBIAR CONTRASEÑA */}
+          {/* CONTRASEÑA */}
 
           <button
             type="button"
@@ -457,8 +773,8 @@ export default function DetalleUsuarioPage() {
               handleMostrarCambioPassword
             }
             disabled={
+              guardando ||
               cambiandoPassword ||
-              cambiandoRol ||
               cambiandoEstado
             }
             className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -468,7 +784,7 @@ export default function DetalleUsuarioPage() {
               : 'Cambiar contraseña'}
           </button>
 
-          {/* ACTIVAR / DESACTIVAR */}
+          {/* ESTADO */}
 
           {usuario.activo ? (
             <button
@@ -477,8 +793,8 @@ export default function DetalleUsuarioPage() {
                 handleCambiarEstado
               }
               disabled={
+                guardando ||
                 cambiandoEstado ||
-                cambiandoRol ||
                 cambiandoPassword
               }
               className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -494,8 +810,8 @@ export default function DetalleUsuarioPage() {
                 handleCambiarEstado
               }
               disabled={
+                guardando ||
                 cambiandoEstado ||
-                cambiandoRol ||
                 cambiandoPassword
               }
               className="rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -507,7 +823,7 @@ export default function DetalleUsuarioPage() {
           )}
         </div>
 
-        {/* FORMULARIO CAMBIO DE CONTRASEÑA */}
+        {/* CAMBIO DE CONTRASEÑA */}
 
         {mostrarCambioPassword && (
           <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:p-5">
@@ -516,7 +832,8 @@ export default function DetalleUsuarioPage() {
             </h3>
 
             <p className="mt-1 text-sm text-slate-500">
-              Ingrese la nueva contraseña para{' '}
+              Ingrese la nueva
+              contraseña para{' '}
               {usuario.nombre}{' '}
               {usuario.apellido}.
             </p>
@@ -533,12 +850,18 @@ export default function DetalleUsuarioPage() {
                 <input
                   id="nuevaPassword"
                   type="password"
-                  value={nuevaPassword}
-                  onChange={(e) =>
+                  value={
+                    nuevaPassword
+                  }
+                  onChange={(
+                    event,
+                  ) =>
                     setNuevaPassword(
-                      e.target.value,
+                      event.target
+                        .value,
                     )
                   }
+                  minLength={8}
                   autoComplete="new-password"
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
@@ -558,11 +881,15 @@ export default function DetalleUsuarioPage() {
                   value={
                     confirmarPassword
                   }
-                  onChange={(e) =>
+                  onChange={(
+                    event,
+                  ) =>
                     setConfirmarPassword(
-                      e.target.value,
+                      event.target
+                        .value,
                     )
                   }
+                  minLength={8}
                   autoComplete="new-password"
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
@@ -592,26 +919,58 @@ export default function DetalleUsuarioPage() {
   );
 }
 
-function Dato({
-  label,
-  valor,
-}: {
+/*
+ * CAMPO DE TEXTO
+ */
+interface CampoTextoProps {
   label: string;
-  valor: string;
-}) {
+  value: string;
+  onChange: (
+    value: string,
+  ) => void;
+  required?: boolean;
+}
+
+function CampoTexto({
+  label,
+  value,
+  onChange,
+  required = false,
+}: CampoTextoProps) {
   return (
     <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+      <label className="mb-2 block text-sm font-medium text-slate-700">
         {label}
-      </p>
 
-      <p className="mt-1 font-medium text-slate-800">
-        {valor}
-      </p>
+        {required && (
+          <span className="text-red-500">
+            {' '}*
+          </span>
+        )}
+      </label>
+
+      <input
+        type="text"
+        value={value}
+        onChange={(
+          event,
+        ) =>
+          onChange(
+            event.target.value,
+          )
+        }
+        required={
+          required
+        }
+        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      />
     </div>
   );
 }
 
+/*
+ * BADGE DEL ROL
+ */
 function RolBadge({
   rol,
 }: {
@@ -632,12 +991,16 @@ function RolBadge({
   );
 }
 
+/*
+ * MENSAJES DE ERROR DEL BACKEND
+ */
 function obtenerMensajeError(
   error: unknown,
   mensajeDefault: string,
 ): string {
   if (
-    typeof error === 'object' &&
+    typeof error ===
+      'object' &&
     error !== null &&
     'response' in error
   ) {
@@ -656,12 +1019,19 @@ function obtenerMensajeError(
     const mensaje =
       response?.data?.message;
 
-    if (Array.isArray(mensaje)) {
-      return mensaje.join(', ');
+    if (
+      Array.isArray(
+        mensaje,
+      )
+    ) {
+      return mensaje.join(
+        ', ',
+      );
     }
 
     if (
-      typeof mensaje === 'string'
+      typeof mensaje ===
+      'string'
     ) {
       return mensaje;
     }
