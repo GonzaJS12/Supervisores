@@ -41,6 +41,18 @@ export interface RespuestaPaginadaSupervisiones {
   meta: PaginacionMeta;
 }
 
+/*
+ * FILTROS
+ *
+ * Se utilizan tanto para ADMIN
+ * como para SUPERVISOR.
+ */
+export interface FiltrosSupervisiones {
+  fechaDesde?: string;
+  fechaHasta?: string;
+  clasificacion?: string;
+}
+
 export const crearSupervision = async (
   datos: CrearSupervisionRequest,
 ) => {
@@ -54,13 +66,20 @@ export const crearSupervision = async (
 
 /*
  * ADMIN
+ *
  * Todas las supervisiones.
  * Paginadas de a 15.
+ *
+ * Permite filtrar por:
+ * - fecha desde
+ * - fecha hasta
+ * - clasificación
  */
 export const obtenerSupervisiones =
   async (
     page = 1,
     limit = 15,
+    filtros: FiltrosSupervisiones = {},
   ): Promise<
     RespuestaPaginadaSupervisiones
   > => {
@@ -73,6 +92,18 @@ export const obtenerSupervisiones =
           params: {
             page,
             limit,
+
+            fechaDesde:
+              filtros.fechaDesde ||
+              undefined,
+
+            fechaHasta:
+              filtros.fechaHasta ||
+              undefined,
+
+            clasificacion:
+              filtros.clasificacion ||
+              undefined,
           },
         },
       );
@@ -82,13 +113,20 @@ export const obtenerSupervisiones =
 
 /*
  * SUPERVISOR
+ *
  * Solamente sus supervisiones.
  * Paginadas de a 15.
+ *
+ * Permite filtrar por:
+ * - fecha desde
+ * - fecha hasta
+ * - clasificación
  */
 export const obtenerMisSupervisiones =
   async (
     page = 1,
     limit = 15,
+    filtros: FiltrosSupervisiones = {},
   ): Promise<
     RespuestaPaginadaSupervisiones
   > => {
@@ -101,40 +139,54 @@ export const obtenerMisSupervisiones =
           params: {
             page,
             limit,
+
+            fechaDesde:
+              filtros.fechaDesde ||
+              undefined,
+
+            fechaHasta:
+              filtros.fechaHasta ||
+              undefined,
+
+            clasificacion:
+              filtros.clasificacion ||
+              undefined,
           },
         },
       );
 
     return response.data;
   };
-  /*
-  * ADMIN / SUPERVISOR
-  *
-  * Obtiene las supervisiones completas
-  * para generar el PDF.
-  *
-  * ADMIN:
-  * todas las supervisiones.
-  *
-  * SUPERVISOR:
-  * solamente las propias.
-  */
-  export const obtenerSupervisionesParaExportacion =
-    async (): Promise<
-      SupervisionListado[]
-    > => {
-      const response =
-        await api.get<
-          SupervisionListado[]
-        >(
-          '/supervisiones/exportacion',
-        );
 
-      return response.data;
-    };
+/*
+ * ADMIN / SUPERVISOR
+ *
+ * Obtiene las supervisiones completas
+ * para generar el PDF.
+ *
+ * ADMIN:
+ * todas las supervisiones.
+ *
+ * SUPERVISOR:
+ * solamente las propias.
+ */
+export const obtenerSupervisionesParaExportacion =
+  async (): Promise<
+    SupervisionListado[]
+  > => {
+    const response =
+      await api.get<
+        SupervisionListado[]
+      >(
+        '/supervisiones/exportacion',
+      );
+
+    return response.data;
+  };
 
 /*
  * SUPERVISOR
+ *
  * Métricas personales.
  */
 export const obtenerMisMetricas =
@@ -153,6 +205,7 @@ export const obtenerMisMetricas =
 
 /*
  * ADMIN
+ *
  * Métricas globales.
  */
 export const obtenerMetricasGlobales =
@@ -182,8 +235,14 @@ export const obtenerSupervisionPorId =
   };
 
 /*
- * ADMIN
- * Historial completo de un agente.
+ * ADMIN / SUPERVISOR
+ *
+ * Historial de supervisiones
+ * de un agente.
+ *
+ * El backend aplica las
+ * restricciones correspondientes
+ * según el rol.
  */
 export const obtenerSupervisionesPorAgente =
   async (

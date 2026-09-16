@@ -495,15 +495,177 @@ export class SupervisionesService {
     );
   }
 
+    /*
+   * CONSTRUIR FILTROS
+   * DE SUPERVISIONES
+   *
+   * Este método es utilizado tanto
+   * por ADMIN como por SUPERVISOR.
+   */
+  private construirFiltrosSupervision(
+    fechaDesde?: string,
+    fechaHasta?: string,
+    clasificacion?: string,
+  ): Prisma.SupervisionWhereInput {
+    const where:
+      Prisma.SupervisionWhereInput = {};
+
+    /*
+     * FILTRO POR CLASIFICACIÓN
+     */
+    if (clasificacion) {
+      const clasificacionNormalizada =
+        clasificacion
+          .trim()
+          .toUpperCase();
+
+      const clasificacionesValidas =
+        Object.values(Clasificacion);
+
+      if (
+        !clasificacionesValidas.includes(
+          clasificacionNormalizada as Clasificacion,
+        )
+      ) {
+        throw new BadRequestException(
+          'La clasificación enviada no es válida',
+        );
+      }
+
+      where.clasificacion =
+        clasificacionNormalizada as Clasificacion;
+    }
+
+    /*
+     * VALIDAR FECHAS
+     */
+    let desde: Date | undefined;
+    let hasta: Date | undefined;
+
+    if (fechaDesde) {
+      desde =
+        new Date(
+          `${fechaDesde}T00:00:00`,
+        );
+
+      if (
+        Number.isNaN(
+          desde.getTime(),
+        )
+      ) {
+        throw new BadRequestException(
+          'La fecha desde no es válida',
+        );
+      }
+    }
+
+    if (fechaHasta) {
+      hasta =
+        new Date(
+          `${fechaHasta}T00:00:00`,
+        );
+
+      if (
+        Number.isNaN(
+          hasta.getTime(),
+        )
+      ) {
+        throw new BadRequestException(
+          'La fecha hasta no es válida',
+        );
+      }
+    }
+
+    /*
+     * VALIDAR RANGO
+     *
+     * La fecha desde no puede
+     * ser posterior a fecha hasta.
+     */
+    if (
+      desde &&
+      hasta &&
+      desde.getTime() >
+        hasta.getTime()
+    ) {
+      throw new BadRequestException(
+        'La fecha desde no puede ser posterior a la fecha hasta',
+      );
+    }
+
+    /*
+     * CONSTRUIR FILTRO DE FECHA
+     */
+    if (
+      desde ||
+      hasta
+    ) {
+      const filtroFecha:
+        Prisma.DateTimeFilter = {};
+
+      /*
+       * Desde las 00:00:00
+       * del día seleccionado.
+       */
+      if (desde) {
+        filtroFecha.gte =
+          desde;
+      }
+
+      /*
+       * Para incluir completamente
+       * fechaHasta sumamos un día
+       * y utilizamos "lt".
+       *
+       * Ejemplo:
+       *
+       * fechaHasta = 2026-09-16
+       *
+       * fecha < 2026-09-17
+       */
+      if (hasta) {
+        const diaSiguiente =
+          new Date(hasta);
+
+        diaSiguiente.setDate(
+          diaSiguiente.getDate() +
+            1,
+        );
+
+        filtroFecha.lt =
+          diaSiguiente;
+      }
+
+      where.fecha =
+        filtroFecha;
+    }
+
+    return where;
+  }
+
   /*
-   * LISTAR COMPAGINADA
+   * LISTAR PAGINADA
+   *
+   * ADMIN
+   *
+   * Devuelve todas las
+   * supervisiones.
+   *
+   * Permite filtrar por:
+   * - fecha desde
+   * - fecha hasta
+   * - clasificación
    */
   async listar(
     page = 1,
     limit = 15,
+    fechaDesde?: string,
+    fechaHasta?: string,
+    clasificacion?: string,
   ) {
     const pagina =
-      Number.isFinite(page) && page > 0
+      Number.isFinite(page) &&
+      page > 0
         ? Math.floor(page)
         : 1;
 
@@ -517,87 +679,125 @@ export class SupervisionesService {
         : 15;
 
     const skip =
-      (pagina - 1) * limite;
+      (pagina - 1) *
+      limite;
+
+    /*
+     * Construimos los filtros
+     * comunes.
+     *
+     * ADMIN no agrega
+     * supervisorId porque puede
+     * consultar todas.
+     */
+    const where =
+      this.construirFiltrosSupervision(
+        fechaDesde,
+        fechaHasta,
+        clasificacion,
+      );
 
     const [
       supervisiones,
       total,
     ] = await Promise.all([
-      this.prisma.supervision.findMany({
-        skip,
-        take: limite,
+      this.prisma.supervision
+        .findMany({
+          where,
 
-        orderBy: [
-          {
-            fecha: 'desc',
-          },
-          {
-            id: 'desc',
-          },
-        ],
+          skip,
 
-        include: {
-          agenteSanitario: {
-            select: {
-              id: true,
-              nombre: true,
-              apellido: true,
-              documento: true,
-              legajo: true,
+          take: limite,
+
+          orderBy: [
+            {
+              fecha: 'desc',
+            },
+            {
+              id: 'desc',
+            },
+          ],
+
+          include: {
+            agenteSanitario: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                documento: true,
+                legajo: true,
+              },
+            },
+
+            supervisor: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                email: true,
+              },
+            },
+
+            areaOperativa: {
+              select: {
+                id: true,
+                nombre: true,
+              },
+            },
+
+            sector: {
+              select: {
+                id: true,
+                numero: true,
+                nombre: true,
+              },
+            },
+
+            ronda: {
+              select: {
+                id: true,
+                externalRondaId:
+                  true,
+                nombre: true,
+              },
             },
           },
+        }),
 
-          supervisor: {
-            select: {
-              id: true,
-              nombre: true,
-              apellido: true,
-              email: true,
-            },
-          },
-
-          areaOperativa: {
-            select: {
-              id: true,
-              nombre: true,
-            },
-          },
-
-          sector: {
-            select: {
-              id: true,
-              numero: true,
-              nombre: true,
-            },
-          },
-
-          ronda: {
-            select: {
-              id: true,
-              externalRondaId: true,
-              nombre: true,
-            },
-          },
-        },
-      }),
-
-      this.prisma.supervision.count(),
+      /*
+       * count utiliza exactamente
+       * los mismos filtros.
+       *
+       * Esto mantiene correcta
+       * la paginación.
+       */
+      this.prisma.supervision
+        .count({
+          where,
+        }),
     ]);
 
     const totalPages =
       total === 0
         ? 0
         : Math.ceil(
-            total / limite,
+            total /
+              limite,
           );
 
     return {
-      data: supervisiones,
+      data:
+        supervisiones,
 
       meta: {
-        page: pagina,
-        limit: limite,
+        page:
+          pagina,
+
+        limit:
+          limite,
+
         total,
+
         totalPages,
       },
     };
@@ -605,14 +805,29 @@ export class SupervisionesService {
 
   /*
    * LISTAR POR SUPERVISOR
+   *
+   * SUPERVISOR
+   *
+   * Devuelve solamente
+   * supervisiones realizadas
+   * por el supervisor autenticado.
+   *
+   * Permite filtrar por:
+   * - fecha desde
+   * - fecha hasta
+   * - clasificación
    */
   async listarPorSupervisor(
     supervisorId: number,
     page = 1,
     limit = 15,
+    fechaDesde?: string,
+    fechaHasta?: string,
+    clasificacion?: string,
   ) {
     const pagina =
-      Number.isFinite(page) && page > 0
+      Number.isFinite(page) &&
+      page > 0
         ? Math.floor(page)
         : 1;
 
@@ -626,95 +841,129 @@ export class SupervisionesService {
         : 15;
 
     const skip =
-      (pagina - 1) * limite;
+      (pagina - 1) *
+      limite;
 
-    const where = {
-      supervisorId,
-    };
+    /*
+     * Primero construimos
+     * los filtros comunes.
+     */
+    const where =
+      this.construirFiltrosSupervision(
+        fechaDesde,
+        fechaHasta,
+        clasificacion,
+      );
+
+    /*
+     * Después agregamos
+     * obligatoriamente el supervisor.
+     *
+     * De esta manera nunca puede
+     * consultar supervisiones
+     * realizadas por otro supervisor.
+     */
+    where.supervisorId =
+      supervisorId;
 
     const [
       supervisiones,
       total,
     ] = await Promise.all([
-      this.prisma.supervision.findMany({
-        where,
+      this.prisma.supervision
+        .findMany({
+          where,
 
-        skip,
-        take: limite,
+          skip,
 
-        orderBy: [
-          {
-            fecha: 'desc',
-          },
-          {
-            id: 'desc',
-          },
-        ],
+          take: limite,
 
-        include: {
-          agenteSanitario: {
-            select: {
-              id: true,
-              nombre: true,
-              apellido: true,
-              documento: true,
-              legajo: true,
+          orderBy: [
+            {
+              fecha: 'desc',
+            },
+            {
+              id: 'desc',
+            },
+          ],
+
+          include: {
+            agenteSanitario: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                documento: true,
+                legajo: true,
+              },
+            },
+
+            supervisor: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                email: true,
+              },
+            },
+
+            areaOperativa: {
+              select: {
+                id: true,
+                nombre: true,
+              },
+            },
+
+            sector: {
+              select: {
+                id: true,
+                numero: true,
+                nombre: true,
+              },
+            },
+
+            ronda: {
+              select: {
+                id: true,
+                externalRondaId:
+                  true,
+                nombre: true,
+              },
             },
           },
+        }),
 
-          supervisor: {
-            select: {
-              id: true,
-              nombre: true,
-              apellido: true,
-              email: true,
-            },
-          },
-
-          areaOperativa: {
-            select: {
-              id: true,
-              nombre: true,
-            },
-          },
-
-          sector: {
-            select: {
-              id: true,
-              numero: true,
-              nombre: true,
-            },
-          },
-
-          ronda: {
-            select: {
-              id: true,
-              externalRondaId: true,
-              nombre: true,
-            },
-          },
-        },
-      }),
-
-      this.prisma.supervision.count({
-        where,
-      }),
+      /*
+       * count utiliza exactamente
+       * los mismos filtros.
+       */
+      this.prisma.supervision
+        .count({
+          where,
+        }),
     ]);
 
     const totalPages =
       total === 0
         ? 0
         : Math.ceil(
-            total / limite,
+            total /
+              limite,
           );
 
     return {
-      data: supervisiones,
+      data:
+        supervisiones,
 
       meta: {
-        page: pagina,
-        limit: limite,
+        page:
+          pagina,
+
+        limit:
+          limite,
+
         total,
+
         totalPages,
       },
     };

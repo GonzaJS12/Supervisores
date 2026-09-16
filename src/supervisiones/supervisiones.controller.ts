@@ -5,9 +5,9 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
   Req,
   UseGuards,
-  Query,
 } from '@nestjs/common';
 
 import type { Request } from 'express';
@@ -52,14 +52,23 @@ export class SupervisionesController {
       SupervisionesService,
   ) {}
 
+  /*
+   * CREAR SUPERVISIÓN
+   *
+   * ADMIN y SUPERVISOR
+   * pueden crear supervisiones.
+   */
   @Post()
   @Roles(
     RolUsuario.ADMIN,
     RolUsuario.SUPERVISOR,
   )
   crear(
-    @Body() dto: CrearSupervisionDto,
-    @Req() req: Request,
+    @Body()
+    dto: CrearSupervisionDto,
+
+    @Req()
+    req: Request,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -72,14 +81,40 @@ export class SupervisionesController {
 
   /*
    * SUPERVISOR
-   * Devuelve solamente sus supervisiones.
+   *
+   * Devuelve solamente las
+   * supervisiones realizadas
+   * por el supervisor autenticado.
+   *
+   * Permite filtrar por:
+   * - fecha desde
+   * - fecha hasta
+   * - clasificación
+   *
+   * Los filtros pueden combinarse.
    */
   @Get('mis-supervisiones')
-  @Roles(RolUsuario.SUPERVISOR)
+  @Roles(
+    RolUsuario.SUPERVISOR,
+  )
   listarMisSupervisiones(
-    @Req() req: Request,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Req()
+    req: Request,
+
+    @Query('page')
+    page?: string,
+
+    @Query('limit')
+    limit?: string,
+
+    @Query('fechaDesde')
+    fechaDesde?: string,
+
+    @Query('fechaHasta')
+    fechaHasta?: string,
+
+    @Query('clasificacion')
+    clasificacion?: string,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -87,19 +122,33 @@ export class SupervisionesController {
     return this.supervisionesService
       .listarPorSupervisor(
         usuario.id,
-        page ? Number(page) : 1,
-        limit ? Number(limit) : 15,
+
+        page
+          ? Number(page)
+          : 1,
+
+        limit
+          ? Number(limit)
+          : 15,
+
+        fechaDesde,
+        fechaHasta,
+        clasificacion,
       );
   }
 
   /*
    * SUPERVISOR
+   *
    * Métricas personales.
    */
   @Get('mis-metricas')
-  @Roles(RolUsuario.SUPERVISOR)
+  @Roles(
+    RolUsuario.SUPERVISOR,
+  )
   obtenerMisMetricas(
-    @Req() req: Request,
+    @Req()
+    req: Request,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -109,33 +158,79 @@ export class SupervisionesController {
         usuario.id,
       );
   }
+
   /*
    * ADMIN
+   *
+   * Métricas globales.
    */
   @Get('metricas')
-  @Roles(RolUsuario.ADMIN)
+  @Roles(
+    RolUsuario.ADMIN,
+  )
   obtenerMetricasGlobales() {
     return this.supervisionesService
       .obtenerMetricasGlobales();
   }
+
   /*
    * ADMIN
-   * Métricas globales paginadas.
+   *
+   * Devuelve todas las
+   * supervisiones.
+   *
+   * Permite filtrar por:
+   * - fecha desde
+   * - fecha hasta
+   * - clasificación
+   *
+   * Los filtros pueden combinarse.
    */
   @Get()
-  @Roles(RolUsuario.ADMIN)
+  @Roles(
+    RolUsuario.ADMIN,
+  )
   listar(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query('page')
+    page?: string,
+
+    @Query('limit')
+    limit?: string,
+
+    @Query('fechaDesde')
+    fechaDesde?: string,
+
+    @Query('fechaHasta')
+    fechaHasta?: string,
+
+    @Query('clasificacion')
+    clasificacion?: string,
   ) {
-    return this.supervisionesService.listar(
-      page ? Number(page) : 1,
-      limit ? Number(limit) : 15,
-    );
+    return this.supervisionesService
+      .listar(
+        page
+          ? Number(page)
+          : 1,
+
+        limit
+          ? Number(limit)
+          : 15,
+
+        fechaDesde,
+        fechaHasta,
+        clasificacion,
+      );
   }
+
   /*
-   * ADMIN
-   * Historial completo de un agente.
+   * ADMIN y SUPERVISOR
+   *
+   * Historial de supervisiones
+   * de un agente.
+   *
+   * El service aplica las
+   * restricciones correspondientes
+   * según el rol.
    */
   @Get('agente/:agenteId')
   @Roles(
@@ -149,7 +244,8 @@ export class SupervisionesController {
     )
     agenteId: number,
 
-  @Req() req: Request,
+    @Req()
+    req: Request,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -161,26 +257,28 @@ export class SupervisionesController {
         usuario.rol,
       );
   }
+
   /*
- * EXPORTACIÓN
- *
- * ADMIN:
- * obtiene todas las supervisiones.
- *
- * SUPERVISOR:
- * obtiene solamente las propias.
- *
- * Este endpoint NO está paginado
- * porque se utiliza para generar
- * el reporte PDF completo.
- */
+   * EXPORTACIÓN
+   *
+   * ADMIN:
+   * obtiene todas las supervisiones.
+   *
+   * SUPERVISOR:
+   * obtiene solamente las propias.
+   *
+   * Este endpoint NO está paginado
+   * porque se utiliza para generar
+   * el reporte PDF completo.
+   */
   @Get('exportacion')
   @Roles(
     RolUsuario.ADMIN,
     RolUsuario.SUPERVISOR,
   )
   listarParaExportacion(
-    @Req() req: Request,
+    @Req()
+    req: Request,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -191,14 +289,16 @@ export class SupervisionesController {
         usuario.rol,
       );
   }
-  
 
   /*
+   * BUSCAR POR ID
+   *
    * ADMIN:
    * puede ver cualquiera.
    *
    * SUPERVISOR:
-   * solamente una realizada por él.
+   * solamente una supervisión
+   * realizada por él.
    */
   @Get(':id')
   @Roles(
@@ -212,7 +312,8 @@ export class SupervisionesController {
     )
     id: number,
 
-    @Req() req: Request,
+    @Req()
+    req: Request,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;

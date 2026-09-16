@@ -77,12 +77,74 @@ export default function SupervisionesPage() {
     useState('');
 
   /*
+   * FILTROS
+   */
+  const [
+    fechaDesde,
+    setFechaDesde,
+  ] = useState('');
+
+  const [
+    fechaHasta,
+    setFechaHasta,
+  ] = useState('');
+
+  const [
+    clasificacion,
+    setClasificacion,
+  ] = useState('');
+
+  /*
+   * Cada vez que cambia un filtro
+   * volvemos a la primera página.
+   */
+  const handleFechaDesdeChange = (
+    valor: string,
+  ) => {
+    setFechaDesde(valor);
+    setPagina(1);
+  };
+
+  const handleFechaHastaChange = (
+    valor: string,
+  ) => {
+    setFechaHasta(valor);
+    setPagina(1);
+  };
+
+  const handleClasificacionChange = (
+    valor: string,
+  ) => {
+    setClasificacion(valor);
+    setPagina(1);
+  };
+
+  /*
+   * LIMPIAR FILTROS
+   */
+  const handleLimpiarFiltros = () => {
+    setFechaDesde('');
+    setFechaHasta('');
+    setClasificacion('');
+    setPagina(1);
+  };
+
+  const hayFiltros =
+    fechaDesde !== '' ||
+    fechaHasta !== '' ||
+    clasificacion !== '';
+
+  /*
    * EXPORTACIÓN PDF
    *
    * El listado visual está paginado,
    * pero el PDF debe contener todas
    * las supervisiones permitidas
    * para el usuario autenticado.
+   *
+   * Por ahora mantenemos el
+   * comportamiento existente:
+   * exporta el historial completo.
    */
   const handleExportarPdf =
     async () => {
@@ -140,6 +202,11 @@ export default function SupervisionesPage() {
    *
    * SUPERVISOR:
    * solamente las propias.
+   *
+   * Ambos pueden filtrar por:
+   * - fecha desde
+   * - fecha hasta
+   * - clasificación
    */
   useEffect(() => {
     const cargar =
@@ -148,15 +215,31 @@ export default function SupervisionesPage() {
           setCargando(true);
           setError('');
 
+          const filtros = {
+            fechaDesde:
+              fechaDesde ||
+              undefined,
+
+            fechaHasta:
+              fechaHasta ||
+              undefined,
+
+            clasificacion:
+              clasificacion ||
+              undefined,
+          };
+
           const respuesta =
             esAdmin
               ? await obtenerSupervisiones(
                   pagina,
                   LIMITE_POR_PAGINA,
+                  filtros,
                 )
               : await obtenerMisSupervisiones(
                   pagina,
                   LIMITE_POR_PAGINA,
+                  filtros,
                 );
 
           setSupervisiones(
@@ -202,15 +285,22 @@ export default function SupervisionesPage() {
   }, [
     esAdmin,
     pagina,
+    fechaDesde,
+    fechaHasta,
+    clasificacion,
   ]);
 
   /*
    * Cuando cambia el rol,
    * comenzamos nuevamente
-   * desde la primera página.
+   * desde la primera página
+   * y limpiamos los filtros.
    */
   useEffect(() => {
     setPagina(1);
+    setFechaDesde('');
+    setFechaHasta('');
+    setClasificacion('');
   }, [esAdmin]);
 
   const desde =
@@ -297,6 +387,152 @@ export default function SupervisionesPage() {
 
       </div>
 
+      {/* FILTROS */}
+
+      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+
+        <div className="mb-4">
+
+          <h2 className="font-semibold text-slate-800">
+            Filtrar supervisiones
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Puede combinar el rango de fechas con la clasificación.
+          </p>
+
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+
+          {/* FECHA DESDE */}
+
+          <div>
+
+            <label
+              htmlFor="fechaDesde"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Fecha desde
+            </label>
+
+            <input
+              id="fechaDesde"
+              type="date"
+              value={fechaDesde}
+              max={
+                fechaHasta ||
+                undefined
+              }
+              onChange={(event) =>
+                handleFechaDesdeChange(
+                  event.target.value,
+                )
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+
+          </div>
+
+          {/* FECHA HASTA */}
+
+          <div>
+
+            <label
+              htmlFor="fechaHasta"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Fecha hasta
+            </label>
+
+            <input
+              id="fechaHasta"
+              type="date"
+              value={fechaHasta}
+              min={
+                fechaDesde ||
+                undefined
+              }
+              onChange={(event) =>
+                handleFechaHastaChange(
+                  event.target.value,
+                )
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+
+          </div>
+
+          {/* CLASIFICACIÓN */}
+
+          <div>
+
+            <label
+              htmlFor="clasificacion"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Clasificación
+            </label>
+
+            <select
+              id="clasificacion"
+              value={
+                clasificacion
+              }
+              onChange={(event) =>
+                handleClasificacionChange(
+                  event.target.value,
+                )
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">
+                Todas
+              </option>
+
+              <option value="CRITICO">
+                Crítico
+              </option>
+
+              <option value="REGULAR">
+                Regular
+              </option>
+
+              <option value="BUENO">
+                Bueno
+              </option>
+
+              <option value="EXCELENTE">
+                Excelente
+              </option>
+            </select>
+
+          </div>
+
+          {/* LIMPIAR */}
+
+          <div className="flex items-end">
+
+            <button
+              type="button"
+              onClick={
+                handleLimpiarFiltros
+              }
+              disabled={
+                !hayFiltros ||
+                cargando
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
       {/* ERROR */}
 
       {error && (
@@ -357,9 +593,11 @@ export default function SupervisionesPage() {
         ) : supervisiones.length === 0 ? (
 
           <div className="p-8 text-center text-slate-500">
-            {esAdmin
-              ? 'No hay supervisiones registradas.'
-              : 'Todavía no ha realizado supervisiones.'}
+            {hayFiltros
+              ? 'No se encontraron supervisiones con los filtros seleccionados.'
+              : esAdmin
+                ? 'No hay supervisiones registradas.'
+                : 'Todavía no ha realizado supervisiones.'}
           </div>
 
         ) : (
