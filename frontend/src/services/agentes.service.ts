@@ -26,21 +26,47 @@ export interface AgentesPaginados {
 }
 
 /*
+ * FILTROS DEL LISTADO
+ *
+ * nombre:
+ * nombre o apellido del agente.
+ *
+ * sectorId:
+ * sector seleccionado.
+ *
+ * areaOperativaId:
+ * solamente se utiliza como
+ * filtro seleccionable para ADMIN.
+ *
+ * El backend continúa siendo
+ * responsable de limitar al
+ * SUPERVISOR a su propia área.
+ */
+export interface FiltrosAgentes {
+  nombre?: string;
+  sectorId?: number;
+  areaOperativaId?: number;
+}
+
+/*
  * LISTADO PRINCIPAL
  *
- * El backend determina según
- * el JWT si el usuario es:
- *
  * ADMIN:
- * todos los agentes.
+ * todos los agentes y puede
+ * filtrar por área.
  *
  * SUPERVISOR:
  * solamente agentes de su área.
+ *
+ * Ambos pueden filtrar por:
+ * - nombre/apellido
+ * - sector
  */
 export const obtenerAgentes =
   async (
     page = 1,
     limit = 15,
+    filtros: FiltrosAgentes = {},
   ): Promise<AgentesPaginados> => {
     const response =
       await api.get<AgentesPaginados>(
@@ -49,6 +75,32 @@ export const obtenerAgentes =
           params: {
             page,
             limit,
+
+            /*
+             * Solamente enviamos
+             * filtros que tengan
+             * algún valor.
+             */
+            ...(filtros.nombre
+              ? {
+                  nombre:
+                    filtros.nombre,
+                }
+              : {}),
+
+            ...(filtros.sectorId
+              ? {
+                  sectorId:
+                    filtros.sectorId,
+                }
+              : {}),
+
+            ...(filtros.areaOperativaId
+              ? {
+                  areaOperativaId:
+                    filtros.areaOperativaId,
+                }
+              : {}),
           },
         },
       );

@@ -1,16 +1,6 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-
-import {
-  RolUsuario,
-} from '@prisma/client';
-
-import {
-  PrismaService,
-} from '../prisma/prisma.service';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { RolUsuario } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AgentesService {
@@ -70,10 +60,8 @@ export class AgentesService {
 
   /*
    * LISTADO PRINCIPAL PAGINADO
-   *
    * ADMIN:
    * todos los agentes.
-   *
    * SUPERVISOR:
    * solamente agentes de su área.
    */
@@ -82,70 +70,145 @@ export class AgentesService {
     rol: RolUsuario,
     page = 1,
     limit = 15,
+    nombre?: string,
+    sectorId?: number,
+    areaOperativaId?: number,
   ) {
     /*
-     * Evitamos páginas negativas,
-     * cero o valores inválidos.
-     */
+    * PAGINACIÓN
+    */
     const pagina =
       Number.isInteger(page) &&
       page > 0
         ? page
         : 1;
 
-    /*
-     * Nunca permitimos más de
-     * 15 registros por página.
-     */
     const limite =
       Number.isInteger(limit) &&
       limit > 0
-        ? Math.min(limit, 15)
+        ? Math.min(
+            limit,
+            15,
+          )
         : 15;
 
     /*
-     * ADMIN no lleva filtro de área.
-     *
-     * SUPERVISOR queda restringido
-     * a su área asignada.
-     */
-    let where = {};
+     * FILTROS
+    */
+    const where: any = {};
 
+    /*
+     * FILTRO POR NOMBRE
+    *
+    * Busca tanto por nombre
+    * como por apellido.
+    */
+    const nombreBusqueda =
+      nombre?.trim();
+
+    if (nombreBusqueda) {
+      where.OR = [
+        {
+          nombre: {
+            contains:
+              nombreBusqueda,
+            mode: 'insensitive',
+          },
+        },
+        {
+          apellido: {
+            contains:
+              nombreBusqueda,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
+    /*
+     * FILTRO POR SECTOR
+     */
+    if (
+      sectorId !== undefined &&
+      Number.isInteger(sectorId) &&
+      sectorId > 0
+    ) {
+      where.sectorId =
+        sectorId;
+    }
+
+    /*
+    * RESTRICCIÓN / FILTRO
+    * DE ÁREA OPERATIVA
+    */
     if (
       rol ===
       RolUsuario.SUPERVISOR
     ) {
-      const areaOperativaId =
+      /*
+      * El SUPERVISOR siempre
+      * queda limitado al área
+      * asignada en la BD.
+      *
+      * No utilizamos el
+      * areaOperativaId recibido
+      * desde el frontend.
+      */
+      const areaSupervisor =
         await this.obtenerAreaSupervisor(
           usuarioId,
         );
 
-      where = {
+      where.areaOperativaId =
+        areaSupervisor;
+    } else if (
+      rol === RolUsuario.ADMIN &&
+      areaOperativaId !==
+        undefined &&
+      Number.isInteger(
         areaOperativaId,
-      };
+      ) &&
+      areaOperativaId > 0
+    ) {
+      /*
+      * El ADMIN puede elegir
+      * opcionalmente un área.
+      */
+      where.areaOperativaId =
+        areaOperativaId;
     }
 
+    /*
+    * PAGINACIÓN
+    */
     const skip =
       (pagina - 1) *
       limite;
 
     /*
-     * count + findMany se ejecutan
-     * juntos para obtener los datos
-     * y el total correspondiente
-     * al mismo filtro.
-     */
+    * IMPORTANTE:
+    *
+    * count() y findMany()
+    * utilizan exactamente
+    * los mismos filtros.
+    *
+    * De esta forma total y
+    * totalPages representan
+    * el resultado filtrado.
+    */
     const [
       total,
       agentes,
     ] =
       await this.prisma.$transaction([
-        this.prisma.agenteSanitario
+        this.prisma
+          .agenteSanitario
           .count({
             where,
           }),
 
-        this.prisma.agenteSanitario
+        this.prisma
+          .agenteSanitario
           .findMany({
             where,
 
@@ -192,7 +255,8 @@ export class AgentesService {
       total === 0
         ? 0
         : Math.ceil(
-            total / limite,
+            total /
+              limite,
           );
 
     return {
@@ -207,13 +271,7 @@ export class AgentesService {
     };
   }
 
-  /*
-   * LISTAR TODOS
-   *
-   * Se conserva sin paginación
-   * para usos internos que puedan
-   * necesitar el listado completo.
-   */
+  /* LISTAR TODOS */
   async listar() {
     return this.prisma.agenteSanitario
       .findMany({
@@ -371,13 +429,6 @@ export class AgentesService {
 
   /*
    * LISTAR AGENTES ACTIVOS POR ÁREA
-   *
-   * Este endpoint se mantiene
-   * SIN paginación porque se utiliza
-   * para cargar agentes en formularios.
-   *
-   * El areaOperativaId recibido es
-   * nuestro ID local de PostgreSQL.
    */
   async listarPorArea(
     areaOperativaId: number,

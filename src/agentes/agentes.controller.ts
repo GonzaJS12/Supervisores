@@ -41,23 +41,39 @@ export class AgentesController {
    * LISTADO PRINCIPAL PAGINADO
    *
    * ADMIN:
-   * devuelve todos los agentes.
+   * - Todos los agentes.
+   * - Puede filtrar por nombre.
+   * - Puede filtrar por sector.
+   * - Puede filtrar por área.
    *
    * SUPERVISOR:
-   * devuelve solamente los agentes
-   * de su área operativa asignada.
+   * - Solamente agentes de su área.
+   * - Puede filtrar por nombre.
+   * - Puede filtrar por sector.
+   * - No puede ampliar el filtro
+   *   hacia otra área.
    *
    * Máximo 15 registros por página.
    */
   @Get()
   listar(
-    @Req() req: Request,
+    @Req()
+    req: Request,
 
     @Query('page')
     page?: string,
 
     @Query('limit')
     limit?: string,
+
+    @Query('nombre')
+    nombre?: string,
+
+    @Query('sectorId')
+    sectorId?: string,
+
+    @Query('areaOperativaId')
+    areaOperativaId?: string,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -68,6 +84,13 @@ export class AgentesController {
         usuario.rol,
         Number(page) || 1,
         Number(limit) || 15,
+        nombre,
+        sectorId
+          ? Number(sectorId)
+          : undefined,
+        areaOperativaId
+          ? Number(areaOperativaId)
+          : undefined,
       );
   }
 
@@ -91,7 +114,8 @@ export class AgentesController {
     )
     areaOperativaId: number,
 
-    @Req() req: Request,
+    @Req()
+    req: Request,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -120,7 +144,8 @@ export class AgentesController {
     )
     id: number,
 
-    @Req() req: Request,
+    @Req()
+    req: Request,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
