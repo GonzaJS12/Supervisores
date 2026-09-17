@@ -103,7 +103,7 @@ export default function DetalleSupervisionPage() {
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Supervisión #{supervision.id}
+            Supervisión
           </p>
         </div>
 

@@ -164,7 +164,7 @@ setSupervisiones(
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Datos e historial del agente sanitario
+            Historial del agente sanitario
           </p>
         </div>
         
@@ -190,7 +190,7 @@ setSupervisiones(
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Información obtenida del sistema territorial.
+            Información.
           </p>
         </div>
 
@@ -245,17 +245,6 @@ setSupervisiones(
               agente.activo
                 ? 'Activo'
                 : 'Inactivo'
-            }
-          />
-
-          <Dato
-            label="ID externo"
-            valor={
-              agente.externalUserId != null
-                ? String(
-                    agente.externalUserId,
-                  )
-                : '-'
             }
           />
 

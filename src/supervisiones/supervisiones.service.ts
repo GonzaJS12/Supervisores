@@ -1270,11 +1270,15 @@ export class SupervisionesService {
           supervisorId,
         },
 
-        take: 5,
+        take: 10,
 
-        orderBy: {
+        orderBy: [{
           fecha: 'desc',
         },
+        {
+          id: 'desc',
+        },
+      ],
 
         include: {
           agenteSanitario: {
@@ -1433,14 +1437,19 @@ export class SupervisionesService {
       }),
 
       /*
-      * ÚLTIMAS 5 SUPERVISIONES
+      * ÚLTIMAS 10 SUPERVISIONES
       */
       this.prisma.supervision.findMany({
-        take: 5,
+        take: 10,
 
-        orderBy: {
-          fecha: 'desc',
-        },
+        orderBy: [
+          {
+            fecha: 'desc',
+          },
+          {
+            id: 'desc',
+          },
+        ],
 
         include: {
           agenteSanitario: {
