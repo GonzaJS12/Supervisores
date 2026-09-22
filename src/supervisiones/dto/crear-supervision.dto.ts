@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
 import { Type } from 'class-transformer';
 import { DecisionGestion } from '@prisma/client';
@@ -50,7 +50,7 @@ export class CrearSupervisionDto {
   @IsString()
   recomendaciones?: string;
 
-  @IsNotEmpty()
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CrearEvaluacionCriterioDto)
   evaluaciones: CrearEvaluacionCriterioDto[];

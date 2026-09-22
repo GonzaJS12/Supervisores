@@ -4,6 +4,7 @@ import { UsuariosService } from './usuarios.service';
 import { CrearUsuarioDto } from './dto/crear-usuario.dto';
 import { CambiarPasswordDto } from './dto/cambiar-password.dto';
 import { CambiarRolDto } from './dto/cambiar-rol.dto';
+import { CambiarEstadoDto } from './dto/cambiar-estado.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -75,13 +76,19 @@ export class UsuariosController {
     id: number,
 
     @Body()
-    body: {
-      activo: boolean;
+    dto: CambiarEstadoDto,
+
+    @Req()
+    request: {
+      user: {
+        id: number;
+      };
     },
   ) {
     return this.usuariosService.cambiarEstado(
       id,
-      body.activo,
+      dto.activo,
+      request.user.id,
     );
   }
 

@@ -1,9 +1,22 @@
+import 'dotenv/config';
+
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { assertStartupEnv } from './config/env';
 
 async function bootstrap() {
+  assertStartupEnv();
+
   const app = await NestFactory.create(AppModule);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   app.enableCors({
     origin: 'http://localhost:5173',
@@ -13,5 +26,4 @@ async function bootstrap() {
   await app.listen(3000);
 }
 
-
-bootstrap();
+void bootstrap();

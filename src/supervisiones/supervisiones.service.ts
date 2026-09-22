@@ -157,7 +157,7 @@ export class SupervisionesService {
     }
 
     /*
-     * 9. Obtener criterios activos
+     * 9. Obtener criterios activos de bloques activos
      */
     const criterios =
       await this.prisma.criterioEvaluacion.findMany({
@@ -166,6 +166,9 @@ export class SupervisionesService {
             in: criterioIds,
           },
           activo: true,
+          bloque: {
+            activo: true,
+          },
         },
         orderBy: [
           {
@@ -181,14 +184,14 @@ export class SupervisionesService {
 
     /*
      * Verificar que todos los criterios enviados
-     * existan y estén activos.
+     * existan, estén activos y pertenezcan a un bloque activo.
      */
     if (
       criterios.length !==
       criterioIds.length
     ) {
       throw new BadRequestException(
-        'Uno o más criterios no existen o están inactivos',
+        'Uno o más criterios no existen, están inactivos o pertenecen a un bloque inactivo',
       );
     }
 

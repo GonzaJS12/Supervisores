@@ -88,6 +88,7 @@ export class UsuariosService {
   async cambiarEstado(
     id: number,
     activo: boolean,
+    administradorId: number,
   ) {
     const usuario =
       await this.prisma.usuario.findUnique({
@@ -100,6 +101,35 @@ export class UsuariosService {
       throw new NotFoundException(
         'Usuario no encontrado',
       );
+    }
+
+    if (!activo && id === administradorId) {
+      throw new BadRequestException(
+        'No puede desactivar su propio usuario',
+      );
+    }
+
+    if (
+      !activo &&
+      usuario.activo &&
+      usuario.rol === RolUsuario.ADMIN
+    ) {
+      const otrosAdminsActivos =
+        await this.prisma.usuario.count({
+          where: {
+            rol: RolUsuario.ADMIN,
+            activo: true,
+            id: {
+              not: id,
+            },
+          },
+        });
+
+      if (otrosAdminsActivos === 0) {
+        throw new BadRequestException(
+          'No se puede desactivar el último administrador activo',
+        );
+      }
     }
 
     return this.prisma.usuario.update({

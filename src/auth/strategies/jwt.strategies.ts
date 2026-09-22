@@ -16,6 +16,8 @@ import {
   PrismaService,
 } from '../../prisma/prisma.service';
 
+import { requireEnv } from '../../config/env';
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(
   Strategy,
@@ -29,8 +31,7 @@ export class JwtStrategy extends PassportStrategy(
 
       ignoreExpiration: false,
 
-      secretOrKey:
-        process.env.JWT_SECRET!,
+      secretOrKey: requireEnv('JWT_SECRET'),
     });
   }
 
