@@ -6,8 +6,11 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+
+import type { Request } from 'express';
 
 import {
   RolUsuario,
@@ -24,6 +27,10 @@ import {
 import {
   CambiarPasswordDto,
 } from './dto/cambiar-password.dto';
+
+import {
+  CambiarEstadoDto,
+} from './dto/cambiar-estado.dto';
 
 import {
   CambiarAreaOperativaDto,
@@ -138,14 +145,21 @@ export class UsuariosController {
     id: number,
 
     @Body()
-    body: {
-      activo: boolean;
-    },
+    dto: CambiarEstadoDto,
+
+    @Req()
+    req: Request,
   ) {
+    const solicitante =
+      req.user as {
+        id: number;
+      };
+
     return this.usuariosService
       .cambiarEstado(
         id,
-        body.activo,
+        dto.activo,
+        solicitante.id,
       );
   }
 

@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "import:territorial": "tsx prisma/importar-datos-territoriales.ts"
+    "import:territorial": "tsx prisma/importar-datos-territoriales.ts",
+    "postinstall": "node -e \"if (process.env.DATABASE_URL) { require('child_process').execSync('npx prisma generate', { stdio: 'inherit' }); }\""
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -33,6 +34,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "dotenv": "^16.6.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",

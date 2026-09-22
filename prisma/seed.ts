@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient, RolUsuario } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -79,10 +80,17 @@ async function main() {
   // --------------------------------------------------
 
   const adminEmail =
-    process.env.SEED_ADMIN_EMAIL ?? 'admin@supervision.local';
+    process.env.SEED_ADMIN_EMAIL?.trim() ||
+    'admin@supervision.local';
 
   const adminPassword =
-    process.env.SEED_ADMIN_PASSWORD ?? 'admin12@';
+    process.env.SEED_ADMIN_PASSWORD?.trim();
+
+  if (!adminPassword) {
+    throw new Error(
+      'Falta SEED_ADMIN_PASSWORD. Definila en .env antes de ejecutar el seed. No hay contraseña por defecto.',
+    );
+  }
 
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 

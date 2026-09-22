@@ -287,6 +287,14 @@ export class SupervisionesService {
           },
 
           activo: true,
+
+          bloque: {
+            activo: true,
+          },
+        },
+
+        include: {
+          bloque: true,
         },
 
         orderBy: [
@@ -311,7 +319,7 @@ export class SupervisionesService {
       criterioIds.length
     ) {
       throw new BadRequestException(
-        'Uno o más criterios no existen o están inactivos',
+        'Uno o más criterios no existen, están inactivos o pertenecen a un bloque inactivo',
       );
     }
 
