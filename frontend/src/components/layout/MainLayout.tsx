@@ -9,21 +9,23 @@ export default function MainLayout() {
     useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-50">
       <Sidebar
         abierto={sidebarAbierto}
         cerrar={() => setSidebarAbierto(false)}
       />
 
-      <div className="lg:pl-64">
+      <div className="min-h-screen lg:pl-64">
         <Header
           abrirSidebar={() =>
             setSidebarAbierto(true)
           }
         />
 
-        <main className="p-4 sm:p-6 lg:p-8">
-          <Outlet />
+        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div className="mx-auto w-full max-w-[1600px]">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

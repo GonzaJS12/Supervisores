@@ -1,4 +1,10 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+} from 'react-router-dom';
+
 import LoginPage from './pages/auth/LoginPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import AgentesPage from './pages/agentes/AgentesPage';
@@ -11,6 +17,7 @@ import BloquesPage from './pages/admin/BloquesPage';
 import CriteriosPage from './pages/admin/CriteriosPage';
 import NuevoUsuarioPage from './pages/admin/NuevoUsuarioPage';
 import DetalleUsuarioPage from './pages/admin/DetalleUsuarioPage';
+
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './routes/ProtectedRoute';
 import AdminRoute from './routes/AdminRoute';
@@ -19,7 +26,6 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-
         {/* RUTA PÚBLICA */}
 
         <Route
@@ -31,7 +37,6 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
-
             <Route
               path="/dashboard"
               element={<DashboardPage />}
@@ -69,7 +74,6 @@ function App() {
             {/* SOLO ADMIN */}
 
             <Route element={<AdminRoute />}>
-
               <Route
                 path="/admin/usuarios"
                 element={<UsuariosPage />}
@@ -94,9 +98,7 @@ function App() {
                 path="/admin/criterios"
                 element={<CriteriosPage />}
               />
-
             </Route>
-
           </Route>
         </Route>
 
@@ -111,7 +113,6 @@ function App() {
             />
           }
         />
-
       </Routes>
     </BrowserRouter>
   );

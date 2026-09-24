@@ -1,6 +1,8 @@
 import {
   useEffect,
   useState,
+  type FormEvent,
+  type ReactNode,
 } from 'react';
 
 import {
@@ -97,7 +99,7 @@ export default function NuevoUsuarioPage() {
 
           setAreas(
             datos.filter(
-              (area) =>
+              area =>
                 area.activo,
             ),
           );
@@ -112,23 +114,11 @@ export default function NuevoUsuarioPage() {
         }
       };
 
-    cargarAreas();
+    void cargarAreas();
   }, []);
 
-  /*
-   * SI CAMBIA A ADMIN,
-   * EL ÁREA NO CORRESPONDE
-   */
-  useEffect(() => {
-    if (
-      rol === 'ADMIN'
-    ) {
-      setAreaOperativaId('');
-    }
-  }, [rol]);
-
   const handleSubmit = async (
-    event: React.FormEvent,
+    event: FormEvent,
   ) => {
     event.preventDefault();
 
@@ -147,10 +137,6 @@ export default function NuevoUsuarioPage() {
       return;
     }
 
-    /*
-     * TODO SUPERVISOR DEBE
-     * TENER UN ÁREA ASIGNADA
-     */
     if (
       rol === 'SUPERVISOR' &&
       !areaOperativaId
@@ -202,10 +188,6 @@ export default function NuevoUsuarioPage() {
 
         rol,
 
-        /*
-         * SOLO LOS SUPERVISORES
-         * RECIBEN ÁREA OPERATIVA
-         */
         ...(rol ===
         'SUPERVISOR'
           ? {
@@ -233,256 +215,449 @@ export default function NuevoUsuarioPage() {
     }
   };
 
+  const esSupervisor =
+    rol === 'SUPERVISOR';
+
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl space-y-6">
       {/* ENCABEZADO */}
+      <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">
+            Administración
+          </p>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">
-          Nuevo usuario
-        </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Nuevo usuario
+          </h1>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Crear una cuenta para acceder
-          al sistema.
-        </p>
-      </div>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+            Cree una nueva cuenta y
+            defina el nivel de acceso
+            que tendrá dentro del
+            sistema.
+          </p>
+        </div>
 
-      {/* FORMULARIO */}
+        <button
+          type="button"
+          onClick={() =>
+            navigate(
+              '/admin/usuarios',
+            )
+          }
+          disabled={guardando}
+          className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
+        >
+          <IconoVolver />
+
+          Volver a usuarios
+        </button>
+      </section>
+
+      {/* ERROR */}
+      {error && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm text-red-700">
+          <div className="mt-0.5 shrink-0">
+            <IconoAlerta />
+          </div>
+
+          <div>
+            <p className="font-semibold">
+              No se pudo crear el
+              usuario
+            </p>
+
+            <p className="mt-0.5 text-red-600">
+              {error}
+            </p>
+          </div>
+        </div>
+      )}
 
       <form
-        onSubmit={
-          handleSubmit
-        }
-        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+        onSubmit={handleSubmit}
+        className="space-y-6"
       >
-        {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          {/* NOMBRE */}
-
-          <CampoTexto
-            label="Nombre"
-            value={nombre}
-            onChange={
-              setNombre
-            }
-            required
-          />
-
-          {/* APELLIDO */}
-
-          <CampoTexto
-            label="Apellido"
-            value={apellido}
-            onChange={
-              setApellido
-            }
-            required
-          />
-
-          {/* EMAIL */}
-
-          <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Email
-
-              <span className="text-red-500">
-                {' '}*
-              </span>
-            </label>
-
-            <input
-              type="email"
-              value={email}
-              onChange={(
-                event,
-              ) =>
-                setEmail(
-                  event.target
-                    .value,
-                )
+        {/* DATOS PERSONALES */}
+        <SeccionFormulario
+          titulo="Datos personales"
+          descripcion="Información básica para identificar al usuario."
+          icono={<IconoUsuario />}
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <CampoTexto
+              label="Nombre"
+              value={nombre}
+              onChange={
+                setNombre
               }
+              placeholder="Ingrese el nombre"
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              placeholder="usuario@correo.com"
+            />
+
+            <CampoTexto
+              label="Apellido"
+              value={apellido}
+              onChange={
+                setApellido
+              }
+              placeholder="Ingrese el apellido"
+              required
+            />
+
+            <div className="sm:col-span-2">
+              <Etiqueta
+                texto="Correo electrónico"
+                required
+              />
+
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                  <IconoEmail />
+                </div>
+
+                <input
+                  type="email"
+                  value={email}
+                  onChange={event =>
+                    setEmail(
+                      event.target
+                        .value,
+                    )
+                  }
+                  required
+                  autoComplete="email"
+                  placeholder="usuario@correo.com"
+                  className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <p className="mt-1.5 text-xs text-slate-400">
+                Se utilizará para
+                iniciar sesión en el
+                sistema.
+              </p>
+            </div>
+          </div>
+        </SeccionFormulario>
+
+        {/* ACCESO */}
+        <SeccionFormulario
+          titulo="Acceso y permisos"
+          descripcion="Seleccione el rol y, cuando corresponda, el área operativa asignada."
+          icono={<IconoPermisos />}
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            {/* ROL */}
+            <div>
+              <Etiqueta
+                texto="Rol"
+                required
+              />
+
+              <select
+                value={rol}
+                onChange={event => {
+                  const nuevoRol =
+                    event.target
+                      .value as RolUsuario;
+
+                  setRol(nuevoRol);
+
+                  if (
+                    nuevoRol ===
+                    'ADMIN'
+                  ) {
+                    setAreaOperativaId(
+                      '',
+                    );
+                  }
+                }}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+              >
+                <option value="SUPERVISOR">
+                  Supervisor
+                </option>
+
+                <option value="ADMIN">
+                  Administrador
+                </option>
+              </select>
+            </div>
+
+            {/* ÁREA */}
+            {esSupervisor ? (
+              <div>
+                <Etiqueta
+                  texto="Área operativa"
+                  required
+                />
+
+                <select
+                  value={
+                    areaOperativaId
+                  }
+                  onChange={event =>
+                    setAreaOperativaId(
+                      event.target
+                        .value,
+                    )
+                  }
+                  required
+                  disabled={
+                    cargandoAreas
+                  }
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                >
+                  <option value="">
+                    {cargandoAreas
+                      ? 'Cargando áreas...'
+                      : 'Seleccione un área'}
+                  </option>
+
+                  {areas.map(
+                    area => (
+                      <option
+                        key={
+                          area.id
+                        }
+                        value={
+                          area.id
+                        }
+                      >
+                        {
+                          area.nombre
+                        }
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <Etiqueta
+                  texto="Área operativa"
+                />
+
+                <div className="flex min-h-[42px] items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-500">
+                  <IconoInformacion />
+
+                  No corresponde para
+                  administradores
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* EXPLICACIÓN DEL ROL */}
+          <div
+            className={`mt-5 rounded-xl border p-4 ${
+              esSupervisor
+                ? 'border-blue-100 bg-blue-50/60'
+                : 'border-violet-100 bg-violet-50/60'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                  esSupervisor
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-violet-100 text-violet-700'
+                }`}
+              >
+                {esSupervisor ? (
+                  <IconoSupervisor />
+                ) : (
+                  <IconoAdministrador />
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-bold text-slate-800">
+                  {esSupervisor
+                    ? 'Cuenta de supervisor'
+                    : 'Cuenta de administrador'}
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  {esSupervisor
+                    ? 'El supervisor quedará asociado al área operativa seleccionada y trabajará dentro de ese ámbito territorial.'
+                    : 'El administrador tendrá acceso a las funciones administrativas del sistema y no requiere un área operativa asignada.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </SeccionFormulario>
+
+        {/* SEGURIDAD */}
+        <SeccionFormulario
+          titulo="Seguridad de la cuenta"
+          descripcion="Defina la contraseña inicial que utilizará el usuario."
+          icono={<IconoSeguridad />}
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <CampoPassword
+              label="Contraseña"
+              value={password}
+              onChange={
+                setPassword
+              }
+              placeholder="Mínimo 8 caracteres"
+            />
+
+            <CampoPassword
+              label="Confirmar contraseña"
+              value={
+                confirmarPassword
+              }
+              onChange={
+                setConfirmarPassword
+              }
+              placeholder="Repita la contraseña"
             />
           </div>
 
-          {/* ROL */}
+          <div className="mt-5 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mt-0.5 text-slate-400">
+              <IconoInformacion />
+            </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Rol
-            </label>
+            <p className="text-xs leading-5 text-slate-500">
+              La contraseña debe
+              contener al menos{' '}
+              <span className="font-semibold text-slate-700">
+                8 caracteres
+              </span>
+              . Ambos campos deben
+              coincidir antes de crear
+              la cuenta.
+            </p>
+          </div>
+        </SeccionFormulario>
 
-            <select
-              value={rol}
-              onChange={(
-                event,
-              ) =>
-                setRol(
-                  event.target
-                    .value as RolUsuario,
+        {/* ACCIONES */}
+        <div className="flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <p className="hidden text-xs text-slate-400 sm:block">
+            Los campos marcados con * son
+            obligatorios.
+          </p>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  '/admin/usuarios',
                 )
               }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={guardando}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="SUPERVISOR">
-                Supervisor
-              </option>
+              Cancelar
+            </button>
 
-              <option value="ADMIN">
-                Administrador
-              </option>
-            </select>
-          </div>
-
-          {/* ÁREA OPERATIVA */}
-
-          {rol ===
-          'SUPERVISOR' ? (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Área operativa
-
-                <span className="text-red-500">
-                  {' '}*
-                </span>
-              </label>
-
-              <select
-                value={
-                  areaOperativaId
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setAreaOperativaId(
-                    event.target
-                      .value,
-                  )
-                }
-                required
-                disabled={
+            <button
+              type="submit"
+              disabled={
+                guardando ||
+                (
+                  esSupervisor &&
                   cargandoAreas
-                }
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-              >
-                <option value="">
-                  {cargandoAreas
-                    ? 'Cargando áreas...'
-                    : 'Seleccione un área'}
-                </option>
+                )
+              }
+              className="inline-flex min-w-[150px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {guardando ? (
+                <>
+                  <Spinner />
 
-                {areas.map(
-                  (area) => (
-                    <option
-                      key={
-                        area.id
-                      }
-                      value={
-                        area.id
-                      }
-                    >
-                      {
-                        area.nombre
-                      }
-                    </option>
-                  ),
-                )}
-              </select>
-            </div>
-          ) : (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Área operativa
-              </label>
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <IconoAgregar />
 
-              <div className="flex min-h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
-                No corresponde
-              </div>
-            </div>
-          )}
-
-          {/* CONTRASEÑA */}
-
-          <CampoPassword
-            label="Contraseña"
-            value={password}
-            onChange={
-              setPassword
-            }
-          />
-
-          {/* CONFIRMAR CONTRASEÑA */}
-
-          <CampoPassword
-            label="Confirmar contraseña"
-            value={
-              confirmarPassword
-            }
-            onChange={
-              setConfirmarPassword
-            }
-          />
-        </div>
-
-        {/* BOTONES */}
-
-        <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                '/admin/usuarios',
-              )
-            }
-            disabled={
-              guardando
-            }
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-          >
-            Cancelar
-          </button>
-
-          <button
-            type="submit"
-            disabled={
-              guardando ||
-              (
-                rol ===
-                  'SUPERVISOR' &&
-                cargandoAreas
-              )
-            }
-            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {guardando
-              ? 'Guardando...'
-              : 'Crear usuario'}
-          </button>
+                  Crear usuario
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </form>
     </div>
   );
 }
 
-/*
- * CAMPO DE TEXTO
- */
+/* =========================================================
+ * COMPONENTES
+ * ======================================================= */
+
+function SeccionFormulario({
+  titulo,
+  descripcion,
+  icono,
+  children,
+}: {
+  titulo: string;
+  descripcion: string;
+  icono: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+            {icono}
+          </div>
+
+          <div>
+            <h2 className="font-bold text-slate-900 sm:text-lg">
+              {titulo}
+            </h2>
+
+            <p className="mt-1 text-sm leading-5 text-slate-500">
+              {descripcion}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-5 sm:p-6">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Etiqueta({
+  texto,
+  required = false,
+}: {
+  texto: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="mb-2 block text-sm font-semibold text-slate-700">
+      {texto}
+
+      {required && (
+        <span className="ml-1 text-red-500">
+          *
+        </span>
+      )}
+    </label>
+  );
+}
+
 interface CampoTextoProps {
   label: string;
   value: string;
-
   onChange: (
     value: string,
   ) => void;
-
+  placeholder?: string;
   required?: boolean;
 }
 
@@ -490,88 +665,91 @@ function CampoTexto({
   label,
   value,
   onChange,
+  placeholder,
   required = false,
 }: CampoTextoProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-slate-700">
-        {label}
-
-        {required && (
-          <span className="text-red-500">
-            {' '}*
-          </span>
-        )}
-      </label>
+      <Etiqueta
+        texto={label}
+        required={required}
+      />
 
       <input
         type="text"
         value={value}
-        onChange={(
-          event,
-        ) =>
+        onChange={event =>
           onChange(
             event.target.value,
           )
         }
-        required={
-          required
-        }
-        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        required={required}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
       />
     </div>
   );
 }
 
-/*
- * CAMPO PASSWORD
- */
 interface CampoPasswordProps {
   label: string;
   value: string;
-
   onChange: (
     value: string,
   ) => void;
+  placeholder?: string;
 }
 
 function CampoPassword({
   label,
   value,
   onChange,
+  placeholder,
 }: CampoPasswordProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-slate-700">
-        {label}
-
-        <span className="text-red-500">
-          {' '}*
-        </span>
-      </label>
-
-      <input
-        type="password"
-        value={value}
-        onChange={(
-          event,
-        ) =>
-          onChange(
-            event.target.value,
-          )
-        }
+      <Etiqueta
+        texto={label}
         required
-        minLength={8}
-        autoComplete="new-password"
-        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
+
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+          <IconoCandado />
+        </div>
+
+        <input
+          type="password"
+          value={value}
+          onChange={event =>
+            onChange(
+              event.target.value,
+            )
+          }
+          required
+          minLength={8}
+          autoComplete="new-password"
+          placeholder={placeholder}
+          className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+        />
+      </div>
     </div>
   );
 }
 
-/*
+function Spinner() {
+  return (
+    <span
+      className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+      aria-hidden="true"
+    />
+  );
+}
+
+/* =========================================================
  * MENSAJES DE ERROR
- */
+ * ======================================================= */
+
 function obtenerMensajeError(
   error: unknown,
 ): string {
@@ -616,4 +794,298 @@ function obtenerMensajeError(
   }
 
   return 'No se pudo crear el usuario.';
+}
+
+/* =========================================================
+ * ICONOS
+ * ======================================================= */
+
+interface IconoProps {
+  className?: string;
+}
+
+function IconoVolver({
+  className = 'h-4 w-4',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m15 18-6-6 6-6"
+      />
+    </svg>
+  );
+}
+
+function IconoAgregar({
+  className = 'h-4 w-4',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        d="M12 5v14M5 12h14"
+      />
+    </svg>
+  );
+}
+
+function IconoUsuario({
+  className = 'h-5 w-5',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle
+        cx="12"
+        cy="8"
+        r="4"
+      />
+
+      <path
+        strokeLinecap="round"
+        d="M4 21c.7-4 3.4-6 8-6s7.3 2 8 6"
+      />
+    </svg>
+  );
+}
+
+function IconoEmail({
+  className = 'h-4 w-4',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
+      />
+
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m4 7 8 6 8-6"
+      />
+    </svg>
+  );
+}
+
+function IconoPermisos({
+  className = 'h-5 w-5',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3 5 6v5c0 4.8 2.9 8.2 7 10 4.1-1.8 7-5.2 7-10V6l-7-3Z"
+      />
+
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m9 12 2 2 4-4"
+      />
+    </svg>
+  );
+}
+
+function IconoSupervisor({
+  className = 'h-4 w-4',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle
+        cx="12"
+        cy="8"
+        r="4"
+      />
+
+      <path
+        strokeLinecap="round"
+        d="M5 21c.6-4 3-6 7-6s6.4 2 7 6"
+      />
+    </svg>
+  );
+}
+
+function IconoAdministrador({
+  className = 'h-4 w-4',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3 5 6v5c0 4.8 2.9 8.2 7 10 4.1-1.8 7-5.2 7-10V6l-7-3Z"
+      />
+    </svg>
+  );
+}
+
+function IconoSeguridad({
+  className = 'h-5 w-5',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect
+        x="5"
+        y="10"
+        width="14"
+        height="11"
+        rx="2"
+      />
+
+      <path
+        strokeLinecap="round"
+        d="M8 10V7a4 4 0 0 1 8 0v3"
+      />
+
+      <circle
+        cx="12"
+        cy="15"
+        r="1"
+        fill="currentColor"
+        stroke="none"
+      />
+    </svg>
+  );
+}
+
+function IconoCandado({
+  className = 'h-4 w-4',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect
+        x="5"
+        y="10"
+        width="14"
+        height="11"
+        rx="2"
+      />
+
+      <path
+        strokeLinecap="round"
+        d="M8 10V7a4 4 0 0 1 8 0v3"
+      />
+    </svg>
+  );
+}
+
+function IconoInformacion({
+  className = 'h-4 w-4',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+      />
+
+      <path
+        strokeLinecap="round"
+        d="M12 11v5M12 8h.01"
+      />
+    </svg>
+  );
+}
+
+function IconoAlerta({
+  className = 'h-5 w-5',
+}: IconoProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 4 3 20h18L12 4Z"
+      />
+
+      <path
+        strokeLinecap="round"
+        d="M12 9v5M12 17h.01"
+      />
+    </svg>
+  );
 }

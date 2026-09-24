@@ -717,20 +717,6 @@ export default function DetalleUsuarioPage() {
               )}
             </div>
           </div>
-
-          {/* ID */}
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              ID
-            </label>
-
-            <div className="flex min-h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
-              {
-                usuario.id
-              }
-            </div>
-          </div>
         </div>
 
         {/* GUARDAR */}

@@ -6,9 +6,10 @@ import type {
 
 export const obtenerBloquesEvaluacion =
   async (): Promise<BloqueEvaluacion[]> => {
-    const response = await api.get<BloqueEvaluacion[]>(
-      '/bloques-evaluacion',
-    );
+    const response =
+      await api.get<BloqueEvaluacion[]>(
+        '/bloques-evaluacion/activos',
+      );
 
     return response.data;
   };
