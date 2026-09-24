@@ -1,6 +1,17 @@
-import { Controller, Get, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 import { SectoresService } from './sectores.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolUsuario } from '@prisma/client';
+
+interface UsuarioAutenticado {
+  id: number;
+  rol: RolUsuario;
+}
+
+interface RequestConUsuario extends Request {
+  user: UsuarioAutenticado;
+}
 
 @Controller('sectores')
 @UseGuards(JwtAuthGuard)
@@ -10,17 +21,30 @@ export class SectoresController {
   ) {}
 
   @Get()
-  listar() {
-    return this.sectoresService.listar();
+  listar(
+    @Req() req: RequestConUsuario,
+  ) {
+    return this.sectoresService.listarParaUsuario(
+      req.user.id,
+      req.user.rol,
+    );
   }
 
   @Get('area/:areaOperativaId')
   listarPorArea(
-    @Param('areaOperativaId', ParseIntPipe)
+    @Param(
+      'areaOperativaId',
+      ParseIntPipe,
+    )
     areaOperativaId: number,
+
+    @Req()
+    req: RequestConUsuario,
   ) {
-    return this.sectoresService.listarPorArea(
+    return this.sectoresService.listarPorAreaParaUsuario(
       areaOperativaId,
+      req.user.id,
+      req.user.rol,
     );
   }
 }

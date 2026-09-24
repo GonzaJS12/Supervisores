@@ -6,6 +6,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 
@@ -141,11 +142,18 @@ export class UsuariosController {
     body: {
       activo: boolean;
     },
+    @Req()
+    request:{
+      user: {
+        id:number;
+      };
+    },
   ) {
     return this.usuariosService
       .cambiarEstado(
         id,
         body.activo,
+        request.user.id,
       );
   }
 

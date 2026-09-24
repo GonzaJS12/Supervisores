@@ -1,8 +1,19 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { RolUsuario } from '@prisma/client';
+
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+
 import { BloquesEvaluacionService } from './bloques-evaluacion.service';
 import { CrearBloqueDto } from './dto/crear-bloque.dto';
 import { ActualizarBloqueDto } from './dto/actualizar-bloque.dto';
@@ -17,6 +28,11 @@ export class BloquesEvaluacionController {
   @Get()
   listar() {
     return this.service.listar();
+  }
+
+  @Get('activos')
+  listarActivos() {
+    return this.service.listarActivos();
   }
 
   @Get(':id')

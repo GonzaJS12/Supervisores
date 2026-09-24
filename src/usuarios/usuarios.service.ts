@@ -295,6 +295,7 @@ export class UsuariosService {
   async cambiarEstado(
     id: number,
     activo: boolean,
+    usuarioAutenticadoId: number,
   ) {
     const usuario =
       await this.prisma.usuario.findUnique({
@@ -306,6 +307,19 @@ export class UsuariosService {
     if (!usuario) {
       throw new NotFoundException(
         'Usuario no encontrado',
+      );
+    }
+
+    /*
+    * Un administrador no puede
+    * desactivar su propia cuenta.
+    */
+    if (
+      id === usuarioAutenticadoId &&
+      activo === false
+    ) {
+      throw new BadRequestException(
+        'No puede desactivar su propia cuenta',
       );
     }
 

@@ -339,8 +339,8 @@ export class AgentesService {
       agente.areaOperativaId !==
       areaSupervisor
     ) {
-      throw new ForbiddenException(
-        'No tiene permiso para acceder a un agente de otra área operativa',
+      throw new NotFoundException(
+        'El agente sanitario no existe',
       );
     }
 

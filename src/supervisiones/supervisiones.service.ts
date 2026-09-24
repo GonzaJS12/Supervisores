@@ -253,6 +253,22 @@ export class SupervisionesService {
       );
     }
 
+    const puntuacionInvalida =
+      dto.evaluaciones.some(
+        (evaluacion) =>
+          !Number.isInteger(
+            evaluacion.puntuacion,
+          ) ||
+          evaluacion.puntuacion < 1 ||
+          evaluacion.puntuacion > 5,
+      );
+
+    if (puntuacionInvalida) {
+      throw new BadRequestException(
+        'La puntuación de cada criterio debe ser un número entero entre 1 y 5',
+      );
+    }
+
     /*
      * 8. Evitar criterios repetidos
      */
@@ -1046,10 +1062,19 @@ export class SupervisionesService {
     usuarioId: number,
     rol: RolUsuario,
   ) {
+    /*
+     * Primero verificamos que
+     * el agente exista.
+     */
     const agente =
       await this.prisma.agenteSanitario.findUnique({
         where: {
           id: agenteSanitarioId,
+        },
+
+        select: {
+          id: true,
+          areaOperativaId: true,
         },
       });
 
@@ -1059,13 +1084,75 @@ export class SupervisionesService {
       );
     }
 
+    /*
+     * Si es SUPERVISOR debemos comprobar
+     * que el agente pertenezca a su área.
+     *
+     * El área se obtiene directamente
+     * desde la base de datos.
+     */
+    if (
+      rol === RolUsuario.SUPERVISOR
+    ) {
+      const supervisor =
+        await this.prisma.usuario.findUnique({
+          where: {
+            id: usuarioId,
+          },
+
+          select: {
+            id: true,
+            activo: true,
+            rol: true,
+            areaOperativaId: true,
+          },
+        });
+
+      if (
+        !supervisor ||
+        !supervisor.activo ||
+        supervisor.rol !==
+          RolUsuario.SUPERVISOR
+      ) {
+        throw new NotFoundException(
+          'El usuario no existe o no está habilitado',
+        );
+      }
+
+      if (
+        supervisor.areaOperativaId === null
+      ) {
+        throw new ForbiddenException(
+          'El supervisor no tiene un área operativa asignada',
+        );
+      }
+
+      if (
+        agente.areaOperativaId !==
+        supervisor.areaOperativaId
+      ) {
+        throw new NotFoundException(
+          'El agente sanitario no existe',
+        );
+      }
+    }
+
+    /*
+     * ADMIN:
+     * todas las supervisiones del agente.
+     *
+     * SUPERVISOR:
+     * solamente las supervisiones
+     * realizadas por él.
+     */
     return this.prisma.supervision.findMany({
       where: {
         agenteSanitarioId,
 
         ...(rol === RolUsuario.SUPERVISOR
           ? {
-              supervisorId: usuarioId,
+              supervisorId:
+                usuarioId,
             }
           : {}),
       },
@@ -1126,14 +1213,6 @@ export class SupervisionesService {
   }
   /*
   * LISTAR PARA EXPORTACIÓN
-  *
-  * No utiliza paginación.
-  *
-  * ADMIN:
-  * exporta todas.
-  *
-  * SUPERVISOR:
-  * exporta solamente las propias.
   */
   async listarParaExportacion(
     usuarioId: number,

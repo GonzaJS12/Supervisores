@@ -24,6 +24,27 @@ export class BloquesEvaluacionService {
     });
   }
 
+  async listarActivos() {
+    return this.prisma.bloqueEvaluacion.findMany({
+      where: {
+        activo: true,
+      },
+      orderBy: {
+        orden: 'asc',
+      },
+      include: {
+        criterios: {
+          where: {
+            activo: true,
+          },
+          orderBy: {
+            orden: 'asc',
+          },
+        },
+      },
+    });
+  }
+
   async buscarPorId(id: number) {
     const bloque =
       await this.prisma.bloqueEvaluacion.findUnique({
