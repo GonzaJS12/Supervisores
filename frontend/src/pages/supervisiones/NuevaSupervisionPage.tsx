@@ -12,6 +12,13 @@ import type { Ronda } from '../../types/ronda';
 import type { BloqueEvaluacion } from '../../types/evaluacion';
 import type { AreaOperativa } from '../../services/areas-operativas.service';
 import { useAuth } from '../../context/AuthContext';
+import DatePickerField from '../../components/ui/DatePickerField';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
+import {
+  ErrorBanner,
+  LoadingState,
+} from '../../components/ui/FeedbackBlock';
 
 export default function NuevaSupervisionPage() {
   const navigate = useNavigate();
@@ -52,6 +59,20 @@ export default function NuevaSupervisionPage() {
         .toISOString()
         .slice(0, 10),
     );
+
+  const [hora, setHora] = useState('12:00');
+
+  const opcionesHora = useMemo(() => {
+    const items: string[] = [];
+    for (let h = 0; h < 24; h += 1) {
+      for (const m of [0, 30]) {
+        items.push(
+          `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+        );
+      }
+    }
+    return items;
+  }, []);
 
   const [
     familiaNumero,
@@ -636,7 +657,7 @@ export default function NuevaSupervisionPage() {
 
           fecha:
             new Date(
-              `${fecha}T12:00:00`,
+              `${fecha}T${hora}:00`,
             ).toISOString(),
 
           familiaNumero:
@@ -719,9 +740,10 @@ export default function NuevaSupervisionPage() {
 
   if (cargando) {
     return (
-      <div className="text-slate-500">
-        Cargando formulario...
-      </div>
+      <LoadingState
+        title="Cargando formulario…"
+        message="Preparando territorio, agentes y criterios de evaluación."
+      />
     );
   }
 
@@ -732,28 +754,24 @@ export default function NuevaSupervisionPage() {
       }
       className="mx-auto max-w-6xl space-y-6"
     >
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">
-          Nueva supervisión
-        </h1>
+      <PageHeader
+        title="Nueva supervisión"
+        description="Complete territorio, agente, fecha y evaluación. Luego confirme y guarde."
+      />
 
-        <p className="mt-1 text-sm text-slate-500">
-          Formulario de supervisión del agente sanitario.
-        </p>
-      </div>
+      {error ? (
+        <ErrorBanner title="No se pudo guardar" message={error} />
+      ) : null}
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {/* TERRITORIO / AGENTE / FECHA */}
 
-      {/* IDENTIFICACIÓN */}
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-5 text-lg font-semibold text-slate-800">
-          1. Identificación
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-lg font-semibold text-slate-800">
+          Territorio, agente y fecha
         </h2>
+        <p className="mb-5 text-sm text-slate-500">
+          Seleccione área, sector, agente, ronda y momento de la supervisión.
+        </p>
 
         <div className="grid gap-5 md:grid-cols-2">
 
@@ -912,27 +930,36 @@ export default function NuevaSupervisionPage() {
             )}
           </CampoSelect>
 
+          <DatePickerField
+            id="fechaSupervision"
+            label="Fecha"
+            value={fecha}
+            onChange={setFecha}
+            required
+            placeholder="Elegir fecha"
+          />
+
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Fecha
+            <label
+              htmlFor="horaSupervision"
+              className="mb-1 block text-sm font-medium text-slate-700"
+            >
+              Hora
             </label>
 
-            <input
-              type="date"
-              value={
-                fecha
-              }
-              onChange={(
-                e,
-              ) =>
-                setFecha(
-                  e.target
-                    .value,
-                )
-              }
+            <select
+              id="horaSupervision"
+              value={hora}
+              onChange={(e) => setHora(e.target.value)}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-            />
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              {opcionesHora.map((opcion) => (
+                <option key={opcion} value={opcion}>
+                  {opcion}
+                </option>
+              ))}
+            </select>
           </div>
 
           <CampoTexto
@@ -978,7 +1005,7 @@ export default function NuevaSupervisionPage() {
       <section className="space-y-5">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">
-            2. Evaluación
+            Evaluación
           </h2>
 
           <p className="text-sm text-slate-500">
@@ -994,7 +1021,7 @@ export default function NuevaSupervisionPage() {
               key={
                 bloque.id
               }
-              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+              className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm"
             >
               <h3 className="mb-4 font-semibold text-slate-800">
                 {
@@ -1068,10 +1095,11 @@ export default function NuevaSupervisionPage() {
 
       {/* OBSERVACIONES */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-5 text-lg font-semibold text-slate-800">
-          3. Observaciones del supervisor
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-lg font-semibold text-slate-800">
+          Observaciones
         </h2>
+        <p className="mb-5 text-sm text-slate-500">Observaciones y decisión de gestión.</p>
 
         <div className="grid gap-5 md:grid-cols-2">
 
@@ -1120,9 +1148,8 @@ export default function NuevaSupervisionPage() {
 
       {/* DECISIÓN */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">
-          4. Decisión de gestión
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-slate-800">Decisión de gestión
         </h2>
 
         <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -1163,10 +1190,8 @@ export default function NuevaSupervisionPage() {
 
       {/* RESULTADO */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">
-          5. Resultado general
-        </h2>
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-slate-800">Confirmación</h2>
 
         {promedio === null ? (
           <p className="text-sm text-slate-500">
@@ -1207,33 +1232,24 @@ export default function NuevaSupervisionPage() {
 
       {/* BOTONES */}
 
-      <div className="flex justify-end gap-3 pb-10">
-
-        <button
+      <div className="flex flex-col-reverse justify-end gap-3 pb-10 sm:flex-row">
+        <Button
           type="button"
-          onClick={() =>
-            navigate(
-              '/supervisiones',
-            )
-          }
-          className="rounded-lg border border-slate-300 px-5 py-2.5 font-semibold text-slate-700 hover:bg-slate-50"
+          variant="secondary"
+          onClick={() => navigate('/supervisiones')}
+          disabled={guardando}
         >
           Cancelar
-        </button>
-
-        <button
+        </Button>
+        <Button
           type="submit"
-          disabled={
-            guardando ||
-            !formularioCompleto
-          }
-          className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          variant="primary"
+          disabled={guardando || !formularioCompleto}
+          loading={guardando}
+          loadingText="Guardando…"
         >
-          {guardando
-            ? 'Guardando...'
-            : 'Guardar supervisión'}
-        </button>
-
+          Guardar supervisión
+        </Button>
       </div>
     </form>
   );

@@ -13,12 +13,19 @@ export interface Usuario {
   apellido: string;
   email: string;
   rol: RolUsuario;
+  areaOperativaId: number | null;
+  areaOperativa: AreaOperativaUsuario | null;
+}
 
-  areaOperativaId:
-    number | null;
-
-  areaOperativa:
-    AreaOperativaUsuario | null;
+/** Forma real de GET /auth/me (JwtStrategy.validate). */
+export interface UsuarioSesion {
+  id: number;
+  nombre: string;
+  apellido: string;
+  email: string;
+  rol: RolUsuario;
+  activo: boolean;
+  areaOperativaId: number | null;
 }
 
 export interface LoginRequest {

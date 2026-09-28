@@ -12,6 +12,11 @@ export interface Sector {
   nombre?: string | null;
   cobertura?: string | null;
   activo: boolean;
+  areaOperativa?: {
+    id: number;
+    externalAreaId?: number | null;
+    nombre: string;
+  } | null;
 }
 
 export interface RondaSupervision {

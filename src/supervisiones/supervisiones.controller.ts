@@ -25,6 +25,10 @@ import {
 } from './dto/crear-supervision.dto';
 
 import {
+  ListarSupervisionesQueryDto,
+} from './dto/listar-supervisiones-query.dto';
+
+import {
   JwtAuthGuard,
 } from '../auth/guards/jwt-auth.guard';
 
@@ -101,20 +105,8 @@ export class SupervisionesController {
     @Req()
     req: Request,
 
-    @Query('page')
-    page?: string,
-
-    @Query('limit')
-    limit?: string,
-
-    @Query('fechaDesde')
-    fechaDesde?: string,
-
-    @Query('fechaHasta')
-    fechaHasta?: string,
-
-    @Query('clasificacion')
-    clasificacion?: string,
+    @Query()
+    query: ListarSupervisionesQueryDto,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -122,18 +114,11 @@ export class SupervisionesController {
     return this.supervisionesService
       .listarPorSupervisor(
         usuario.id,
-
-        page
-          ? Number(page)
-          : 1,
-
-        limit
-          ? Number(limit)
-          : 15,
-
-        fechaDesde,
-        fechaHasta,
-        clasificacion,
+        query.page ?? 1,
+        query.limit ?? 15,
+        query.fechaDesde,
+        query.fechaHasta,
+        query.clasificacion,
       );
   }
 
@@ -191,34 +176,16 @@ export class SupervisionesController {
     RolUsuario.ADMIN,
   )
   listar(
-    @Query('page')
-    page?: string,
-
-    @Query('limit')
-    limit?: string,
-
-    @Query('fechaDesde')
-    fechaDesde?: string,
-
-    @Query('fechaHasta')
-    fechaHasta?: string,
-
-    @Query('clasificacion')
-    clasificacion?: string,
+    @Query()
+    query: ListarSupervisionesQueryDto,
   ) {
     return this.supervisionesService
       .listar(
-        page
-          ? Number(page)
-          : 1,
-
-        limit
-          ? Number(limit)
-          : 15,
-
-        fechaDesde,
-        fechaHasta,
-        clasificacion,
+        query.page ?? 1,
+        query.limit ?? 15,
+        query.fechaDesde,
+        query.fechaHasta,
+        query.clasificacion,
       );
   }
 
@@ -267,9 +234,10 @@ export class SupervisionesController {
    * SUPERVISOR:
    * obtiene solamente las propias.
    *
-   * Este endpoint NO está paginado
-   * porque se utiliza para generar
-   * el reporte PDF completo.
+   * No usa page/limit del listado, pero el service
+   * aplica un tope (default 500 / SUPERVISIONES_EXPORT_MAX)
+   * y responde 400 si se supera, para no cargar
+   * cantidades ilimitadas en memoria al armar el PDF.
    */
   @Get('exportacion')
   @Roles(

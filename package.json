@@ -21,9 +21,6 @@
     "import:territorial": "tsx prisma/importar-datos-territoriales.ts",
     "postinstall": "node -e \"if (process.env.DATABASE_URL) { require('child_process').execSync('npx prisma generate', { stdio: 'inherit' }); }\""
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
@@ -85,5 +82,8 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

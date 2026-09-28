@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { resolveJwtExpiresIn } from '../config/runtime-env';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategies';
@@ -9,7 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategies';
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: {
-        expiresIn: '8h',
+        expiresIn: resolveJwtExpiresIn(),
       },
     }),
   ],

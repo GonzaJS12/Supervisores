@@ -2,6 +2,11 @@ import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import {
+  leerArchivoSqlUtf8,
+  repararTextoTerritorial,
+  repararTextoUsuarios,
+} from './encoding-utils';
 
 const prisma = new PrismaClient();
 
@@ -728,21 +733,34 @@ async function main() {
     );
   }
 
+  if (!fs.existsSync(archivoUsuarios)) {
+    throw new Error(
+      `No existe el archivo: ${archivoUsuarios}`,
+    );
+  }
+
   console.log(
-    `Archivo: ${archivoDatos}`,
+    `Archivo territorial: ${archivoDatos}`,
+  );
+
+  console.log(
+    `Archivo usuarios/agentes: ${archivoUsuarios}`,
   );
 
   /*
    * Importamos manteniendo el orden
    * de dependencias.
    */
-  const contenido = fs.readFileSync(
-    archivoDatos,
-    'utf8',
+  /*
+   * Los .sql estan UTF-8, pero pueden traer mojibake historico
+   * (CP850 mal leido como Latin-1 en territorial; UTF-8 doblado en users).
+   * Ver prisma/encoding-utils.ts y README (seccion Encoding).
+   */
+  const contenido = repararTextoTerritorial(
+    leerArchivoSqlUtf8(archivoDatos, fs),
   );
-  const contenidoUsuarios = fs.readFileSync(
-  archivoUsuarios,
-  'utf8',
+  const contenidoUsuarios = repararTextoUsuarios(
+    leerArchivoSqlUtf8(archivoUsuarios, fs),
   );
 
   await importarZonas(contenido);
@@ -755,6 +773,13 @@ async function main() {
 
   await importarAgentes(contenidoUsuarios);
 
+  console.log('');
+  console.log(
+    'Nota: desde datos-users.sql solo se importan filas con role=agente como AgenteSanitario.',
+  );
+  console.log(
+    'Los roles supervisor/superadmin del dump externo no se mapean a Usuario (email obligatorio; el admin del sistema sale del seed).',
+  );
   console.log('');
   console.log(
     'Importación finalizada correctamente.',

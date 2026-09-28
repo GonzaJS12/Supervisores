@@ -15,6 +15,9 @@ import {
 import type {
   SupervisionDetalle,
 } from '../../types/supervision';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
+import { ClasificacionBadge } from '../../components/ui/Badge';
 
 export default function DetalleSupervisionPage() {
   const navigate = useNavigate();
@@ -93,34 +96,23 @@ export default function DetalleSupervisionPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
 
-      {/* ENCABEZADO */}
-
-      <div className="flex items-start justify-between">
-
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">
-            Detalle de supervisión
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Supervisión
-          </p>
-        </div>
-
-        <button
-          onClick={() =>
-            navigate('/supervisiones')
-          }
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          Volver
-        </button>
-
-      </div>
+      <PageHeader
+        title="Detalle de supervisión"
+        description="Consulta de la evaluación registrada."
+        actions={
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => navigate('/supervisiones')}
+          >
+            Volver
+          </Button>
+        }
+      />
 
       {/* DATOS GENERALES */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
 
         <h2 className="mb-5 text-lg font-semibold text-slate-800">
           Identificación
@@ -188,7 +180,7 @@ export default function DetalleSupervisionPage() {
 
       {/* EVALUACIONES */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
 
         <h2 className="mb-5 text-lg font-semibold text-slate-800">
           Evaluación
@@ -250,7 +242,7 @@ export default function DetalleSupervisionPage() {
 
       {/* OBSERVACIONES */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
 
         <h2 className="mb-5 text-lg font-semibold text-slate-800">
           Observaciones del supervisor
@@ -291,7 +283,7 @@ export default function DetalleSupervisionPage() {
 
       {/* RESULTADO */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
 
         <h2 className="mb-5 text-lg font-semibold text-slate-800">
           Resultado general
@@ -387,37 +379,6 @@ function Observacion({
   );
 }
 
-function ClasificacionBadge({
-  clasificacion,
-}: {
-  clasificacion?: string | null;
-}) {
-  if (!clasificacion) {
-    return <span>-</span>;
-  }
-
-  const estilos: Record<string, string> = {
-    CRITICO:
-      'bg-red-100 text-red-700',
-    REGULAR:
-      'bg-amber-100 text-amber-700',
-    BUENO:
-      'bg-blue-100 text-blue-700',
-    EXCELENTE:
-      'bg-green-100 text-green-700',
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
-        estilos[clasificacion] ??
-        'bg-slate-100 text-slate-700'
-      }`}
-    >
-      {clasificacion}
-    </span>
-  );
-}
 
 function formatearFecha(
   fecha: string,

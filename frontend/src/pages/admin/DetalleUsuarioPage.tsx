@@ -26,6 +26,8 @@ import type {
 import type {
   UsuarioAdmin,
 } from '../../types/usuario';
+import { obtenerMensajeError } from '../../utils/http-error';
+import { StatusBadge } from '../../components/ui/Badge';
 
 export default function DetalleUsuarioPage() {
   const { id } = useParams();
@@ -706,15 +708,7 @@ export default function DetalleUsuarioPage() {
             </label>
 
             <div className="flex min-h-[42px] items-center">
-              {usuario.activo ? (
-                <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                  Activo
-                </span>
-              ) : (
-                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                  Inactivo
-                </span>
-              )}
+              <StatusBadge activo={usuario.activo} />
             </div>
           </div>
 
@@ -994,48 +988,3 @@ function RolBadge({
 /*
  * MENSAJES DE ERROR DEL BACKEND
  */
-function obtenerMensajeError(
-  error: unknown,
-  mensajeDefault: string,
-): string {
-  if (
-    typeof error ===
-      'object' &&
-    error !== null &&
-    'response' in error
-  ) {
-    const response = (
-      error as {
-        response?: {
-          data?: {
-            message?:
-              | string
-              | string[];
-          };
-        };
-      }
-    ).response;
-
-    const mensaje =
-      response?.data?.message;
-
-    if (
-      Array.isArray(
-        mensaje,
-      )
-    ) {
-      return mensaje.join(
-        ', ',
-      );
-    }
-
-    if (
-      typeof mensaje ===
-      'string'
-    ) {
-      return mensaje;
-    }
-  }
-
-  return mensajeDefault;
-}

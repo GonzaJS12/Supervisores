@@ -25,6 +25,9 @@ import type {
 import type {
   SupervisionListado,
 } from '../../types/supervision';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
+import { StatusBadge, ClasificacionBadge } from '../../components/ui/Badge';
 
 export default function DetalleAgentePage() {
   const { id } = useParams();
@@ -153,36 +156,19 @@ setSupervisiones(
   return (
     <div className="space-y-6">
 
-      {/* ENCABEZADO */}
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">
-            {agente.apellido},{' '}
-            {agente.nombre}
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Historial del agente sanitario
-          </p>
-        </div>
-        
-        <button
-          type="button"
-          onClick={() =>
-            navigate('/agentes')
-          }
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          Volver
-        </button>
-
-      </div>
+      <PageHeader
+        title={`${agente.apellido}, ${agente.nombre}`}
+        description="Historial del agente sanitario"
+        actions={
+          <Button variant="secondary" onClick={() => navigate('/agentes')}>
+            Volver
+          </Button>
+        }
+      />
 
       {/* DATOS DEL AGENTE */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
 
         <div className="mb-5">
           <h2 className="text-lg font-semibold text-slate-800">
@@ -213,22 +199,12 @@ setSupervisiones(
           />
 
           <Dato
-            label="Área operativa"
-            valor={
-              agente.areaOperativa
-                ?.nombre ??
-              `Área ${agente.areaOperativaId}`
-            }
-          />
-
-          <Dato
-            label="Sector"
-            valor={
+            label="Territorio"
+            valor={`${agente.areaOperativa?.nombre ?? `Área ${agente.areaOperativaId}`} → ${
               agente.sector
-                ? agente.sector.nombre ??
-                  `Sector ${agente.sector.numero}`
-                : 'Sin sector asignado'
-            }
+                ? agente.sector.nombre ?? `Sector ${agente.sector.numero}`
+                : 'Sin sector'
+            }`}
           />
 
           <Dato
@@ -239,14 +215,14 @@ setSupervisiones(
             }
           />
 
-          <Dato
-            label="Estado"
-            valor={
-              agente.activo
-                ? 'Activo'
-                : 'Inactivo'
-            }
-          />
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Estado
+            </p>
+            <div className="mt-1">
+              <StatusBadge activo={agente.activo} />
+            </div>
+          </div>
 
         </div>
 
@@ -391,44 +367,6 @@ function Dato({
   );
 }
 
-function ClasificacionBadge({
-  clasificacion,
-}: {
-  clasificacion?:
-    string | null;
-}) {
-  if (!clasificacion) {
-    return <span>-</span>;
-  }
-
-  const estilos:
-    Record<string, string> = {
-      CRITICO:
-        'bg-red-100 text-red-700',
-
-      REGULAR:
-        'bg-amber-100 text-amber-700',
-
-      BUENO:
-        'bg-blue-100 text-blue-700',
-
-      EXCELENTE:
-        'bg-green-100 text-green-700',
-    };
-
-  return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-        estilos[
-          clasificacion
-        ] ??
-        'bg-slate-100 text-slate-700'
-      }`}
-    >
-      {clasificacion}
-    </span>
-  );
-}
 
 function formatearFecha(
   fecha: string,

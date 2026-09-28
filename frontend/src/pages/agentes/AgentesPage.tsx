@@ -34,6 +34,15 @@ import type {
 import type {
   Sector,
 } from '../../types/supervision';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingState,
+} from '../../components/ui/FeedbackBlock';
+import PageHeader from '../../components/ui/PageHeader';
+import FilterPanel from '../../components/ui/FilterPanel';
+import Button from '../../components/ui/Button';
+import { StatusBadge } from '../../components/ui/Badge';
 
 const LIMITE_POR_PAGINA = 15;
 
@@ -476,30 +485,24 @@ export default function AgentesPage() {
     <div>
       {/* ENCABEZADO */}
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">
-          Agentes sanitarios
-        </h1>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Agentes sanitarios obtenidos
-          del sistema territorial.
-        </p>
-      </div>
+      <PageHeader
+        title="Agentes sanitarios"
+        description="Agentes sanitarios obtenidos del sistema territorial."
+      />
 
       {/* FILTROS */}
 
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="mb-4">
-          <h2 className="font-semibold text-slate-800">
-            Filtrar agentes
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Busque por nombre, apellido
-            o ubicación territorial.
-          </p>
-        </div>
+      <FilterPanel
+        title="Filtrar agentes"
+        description="Busque por nombre, apellido o ubicación territorial."
+        onClear={limpiarFiltros}
+        clearDisabled={!hayFiltros}
+        footerLeft={
+          hayFiltros
+            ? `${total} agente${total === 1 ? '' : 's'} encontrado${total === 1 ? '' : 's'}`
+            : `${total} agentes registrados`
+        }
+      >
 
         <div
           className={
@@ -629,60 +632,41 @@ export default function AgentesPage() {
           </div>
         </div>
 
-        {/* ACCIONES FILTROS */}
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-          <div className="text-sm text-slate-500">
-            {hayFiltros
-              ? `${total} agente${
-                  total === 1
-                    ? ''
-                    : 's'
-                } encontrado${
-                  total === 1
-                    ? ''
-                    : 's'
-                }`
-              : `${total} agentes registrados`}
-          </div>
-
-          <button
-            type="button"
-            onClick={
-              limpiarFiltros
-            }
-            disabled={
-              !hayFiltros
-            }
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Limpiar filtros
-          </button>
-        </div>
-      </div>
+      </FilterPanel>
 
       {/* ERROR */}
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <ErrorBanner
+          className="mb-4"
+          title="No se pudieron cargar los agentes"
+          message={error}
+        />
       )}
 
       {/* TABLA */}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
         {cargando ? (
-          <div className="p-8 text-center text-slate-500">
-            Cargando agentes...
-          </div>
+          <LoadingState
+            className="border-0 shadow-none"
+            title="Cargando agentes…"
+          />
         ) : agentes.length ===
           0 ? (
-          <div className="p-8 text-center text-slate-500">
-            {hayFiltros
-              ? 'No se encontraron agentes con los filtros seleccionados.'
-              : 'No hay agentes sanitarios registrados.'}
-          </div>
+          <EmptyState
+            className="m-4 border-0 bg-transparent"
+            title={
+              hayFiltros
+                ? 'Sin resultados'
+                : 'Sin agentes'
+            }
+            message={
+              hayFiltros
+                ? 'No se encontraron agentes con los filtros seleccionados.'
+                : 'No hay agentes sanitarios registrados.'
+            }
+          />
         ) : (
           <>
             <div className="overflow-x-auto">
@@ -698,11 +682,7 @@ export default function AgentesPage() {
                     </th>
 
                     <th className="px-6 py-4 font-semibold text-slate-600">
-                      Área operativa
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-slate-600">
-                      Sector
+                      Territorio (Área → Sector)
                     </th>
 
                     <th className="px-6 py-4 font-semibold text-slate-600">
@@ -726,7 +706,7 @@ export default function AgentesPage() {
                         key={
                           agente.id
                         }
-                        className="hover:bg-slate-50"
+                        className="transition-colors hover:bg-slate-50/80"
                       >
                         <td className="px-6 py-4">
                           <div className="font-medium text-slate-800">
@@ -745,20 +725,22 @@ export default function AgentesPage() {
                             '-'}
                         </td>
 
-                        <td className="px-6 py-4 text-slate-600">
-                          {agente
-                            .areaOperativa
-                            ?.nombre ||
-                            `Área ${agente.areaOperativaId}`}
-                        </td>
-
-                        <td className="px-6 py-4 text-slate-600">
-                          {agente.sector
-                            ? agente
-                                .sector
-                                .nombre ||
-                              `Sector ${agente.sector.numero}`
-                            : 'Sin sector asignado'}
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700">
+                              {agente.areaOperativa?.nombre ||
+                                `Área ${agente.areaOperativaId}`}
+                            </span>
+                            <span className="text-slate-300" aria-hidden>
+                              →
+                            </span>
+                            <span className="rounded-md bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">
+                              {agente.sector
+                                ? agente.sector.nombre ||
+                                  `Sector ${agente.sector.numero}`
+                                : 'Sin sector'}
+                            </span>
+                          </div>
                         </td>
 
                         <td className="px-6 py-4 text-slate-600">
@@ -767,29 +749,19 @@ export default function AgentesPage() {
                         </td>
 
                         <td className="px-6 py-4">
-                          {agente.activo ? (
-                            <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                              Activo
-                            </span>
-                          ) : (
-                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                              Inactivo
-                            </span>
-                          )}
+                          <StatusBadge activo={agente.activo} />
                         </td>
 
                         <td className="px-6 py-4 text-right">
-                          <button
-                            type="button"
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() =>
-                              navigate(
-                                `/agentes/${agente.id}`,
-                              )
+                              navigate(`/agentes/${agente.id}`)
                             }
-                            className="font-medium text-blue-600 transition hover:text-blue-800"
                           >
-                            Ver
-                          </button>
+                            Ver detalle
+                          </Button>
                         </td>
                       </tr>
                     ),
@@ -818,19 +790,14 @@ export default function AgentesPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={
-                    irPaginaAnterior
-                  }
-                  disabled={
-                    pagina <= 1 ||
-                    cargando
-                  }
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={irPaginaAnterior}
+                  disabled={pagina <= 1 || cargando}
                 >
                   Anterior
-                </button>
+                </Button>
 
                 <span className="whitespace-nowrap text-sm text-slate-600">
                   Página{' '}
@@ -845,20 +812,14 @@ export default function AgentesPage() {
                   </span>
                 </span>
 
-                <button
-                  type="button"
-                  onClick={
-                    irPaginaSiguiente
-                  }
-                  disabled={
-                    pagina >=
-                      totalPaginas ||
-                    cargando
-                  }
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={irPaginaSiguiente}
+                  disabled={pagina >= totalPaginas || cargando}
                 >
                   Siguiente
-                </button>
+                </Button>
               </div>
             </div>
           </>

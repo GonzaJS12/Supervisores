@@ -52,6 +52,7 @@ export class JwtStrategy extends PassportStrategy(
           email: true,
           rol: true,
           activo: true,
+          areaOperativaId: true,
         },
       });
 

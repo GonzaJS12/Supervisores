@@ -21,6 +21,10 @@ import {
 } from './agentes.service';
 
 import {
+  ListarAgentesQueryDto,
+} from './dto/listar-agentes-query.dto';
+
+import {
   JwtAuthGuard,
 } from '../auth/guards/jwt-auth.guard';
 
@@ -60,20 +64,8 @@ export class AgentesController {
     @Req()
     req: Request,
 
-    @Query('page')
-    page?: string,
-
-    @Query('limit')
-    limit?: string,
-
-    @Query('nombre')
-    nombre?: string,
-
-    @Query('sectorId')
-    sectorId?: string,
-
-    @Query('areaOperativaId')
-    areaOperativaId?: string,
+    @Query()
+    query: ListarAgentesQueryDto,
   ) {
     const usuario =
       req.user as UsuarioAutenticado;
@@ -82,15 +74,11 @@ export class AgentesController {
       .listarParaUsuario(
         usuario.id,
         usuario.rol,
-        Number(page) || 1,
-        Number(limit) || 15,
-        nombre,
-        sectorId
-          ? Number(sectorId)
-          : undefined,
-        areaOperativaId
-          ? Number(areaOperativaId)
-          : undefined,
+        query.page ?? 1,
+        query.limit ?? 15,
+        query.nombre,
+        query.sectorId,
+        query.areaOperativaId,
       );
   }
 

@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Clasificacion, Prisma, RolUsuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveSupervisionesExportMax } from '../config/runtime-env';
 import { CrearSupervisionDto } from './dto/crear-supervision.dto';
 
 @Injectable()
@@ -1133,28 +1134,45 @@ export class SupervisionesService {
     });
   }
   /*
-  * LISTAR PARA EXPORTACIÓN
-  *
-  * No utiliza paginación.
-  *
-  * ADMIN:
-  * exporta todas.
-  *
-  * SUPERVISOR:
-  * exporta solamente las propias.
-  */
+   * LISTAR PARA EXPORTACIÓN
+   *
+   * No utiliza paginación de listado (page/limit),
+   * pero sí un tope duro (DEFAULT 500, configurable
+   * con SUPERVISIONES_EXPORT_MAX) para evitar
+   * cargas ilimitadas en memoria al armar el PDF.
+   *
+   * ADMIN: exporta todas (hasta el tope).
+   * SUPERVISOR: exporta solamente las propias.
+   *
+   * Si el total supera el tope, responde 400
+   * sin ejecutar el findMany completo.
+   */
   async listarParaExportacion(
     usuarioId: number,
     rol: RolUsuario,
   ) {
-    return this.prisma.supervision.findMany({
-      where:
-        rol === RolUsuario.SUPERVISOR
-          ? {
-              supervisorId: usuarioId,
-            }
-          : undefined,
+    const where =
+      rol === RolUsuario.SUPERVISOR
+        ? {
+            supervisorId: usuarioId,
+          }
+        : undefined;
 
+    const maxExportacion = resolveSupervisionesExportMax();
+
+    const total = await this.prisma.supervision.count({
+      where,
+    });
+
+    if (total > maxExportacion) {
+      throw new BadRequestException(
+        `La exportación supera el máximo de ${maxExportacion} registros (hay ${total}). Reducí el alcance de la consulta o pedí al administrador que ajuste SUPERVISIONES_EXPORT_MAX.`,
+      );
+    }
+
+    return this.prisma.supervision.findMany({
+      where,
+      take: maxExportacion,
       orderBy: [
         {
           fecha: 'desc',
@@ -1163,7 +1181,6 @@ export class SupervisionesService {
           id: 'desc',
         },
       ],
-
       include: {
         agenteSanitario: {
           select: {
@@ -1174,7 +1191,6 @@ export class SupervisionesService {
             legajo: true,
           },
         },
-
         supervisor: {
           select: {
             id: true,
@@ -1183,14 +1199,12 @@ export class SupervisionesService {
             email: true,
           },
         },
-
         areaOperativa: {
           select: {
             id: true,
             nombre: true,
           },
         },
-
         sector: {
           select: {
             id: true,
@@ -1198,7 +1212,6 @@ export class SupervisionesService {
             nombre: true,
           },
         },
-
         ronda: {
           select: {
             id: true,

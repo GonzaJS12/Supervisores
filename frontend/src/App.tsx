@@ -11,6 +11,7 @@ import BloquesPage from './pages/admin/BloquesPage';
 import CriteriosPage from './pages/admin/CriteriosPage';
 import NuevoUsuarioPage from './pages/admin/NuevoUsuarioPage';
 import DetalleUsuarioPage from './pages/admin/DetalleUsuarioPage';
+import TerritorioPage from './pages/admin/TerritorioPage';
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './routes/ProtectedRoute';
 import AdminRoute from './routes/AdminRoute';
@@ -83,6 +84,11 @@ function App() {
               <Route
                 path="/admin/usuarios/:id"
                 element={<DetalleUsuarioPage />}
+              />
+
+              <Route
+                path="/admin/territorio"
+                element={<TerritorioPage />}
               />
 
               <Route

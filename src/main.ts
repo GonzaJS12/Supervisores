@@ -2,6 +2,7 @@ import './config/load-env';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { resolveCorsOrigin } from './config/runtime-env';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -15,7 +16,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: 'http://localhost:5173',
+    origin: resolveCorsOrigin(),
     credentials: true,
   });
 

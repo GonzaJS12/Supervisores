@@ -24,6 +24,17 @@ import type {
 import {
   useAuth,
 } from '../../context/AuthContext';
+import { obtenerMensajeError } from '../../utils/http-error';
+import DatePickerField from '../../components/ui/DatePickerField';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingState,
+} from '../../components/ui/FeedbackBlock';
+import PageHeader from '../../components/ui/PageHeader';
+import FilterPanel from '../../components/ui/FilterPanel';
+import Button from '../../components/ui/Button';
+import { ClasificacionBadge } from '../../components/ui/Badge';
 
 const LIMITE_POR_PAGINA = 15;
 
@@ -187,7 +198,10 @@ export default function SupervisionesPage() {
         console.error(error);
 
         setError(
-          'No se pudo generar el PDF de supervisiones.',
+          obtenerMensajeError(
+            error,
+            'No se pudo generar el PDF de supervisiones.',
+          ),
         );
       } finally {
         setExportandoPdf(false);
@@ -332,136 +346,66 @@ export default function SupervisionesPage() {
 
       {/* ENCABEZADO */}
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-        <div>
-
-          <h1 className="text-2xl font-bold text-slate-800">
-            {esAdmin
-              ? 'Supervisiones'
-              : 'Mis supervisiones'}
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            {esAdmin
-              ? 'Historial de todas las supervisiones realizadas.'
-              : 'Historial de sus supervisiones realizadas.'}
-          </p>
-
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-
-          <button
-            type="button"
-            onClick={
-              handleExportarPdf
-            }
-            disabled={
-              cargando ||
-              exportandoPdf ||
-              total === 0
-            }
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {exportandoPdf
-              ? 'Generando PDF...'
-              : esAdmin
-                ? 'Exportar PDF'
-                : 'Exportar mis supervisiones'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                '/supervisiones/nueva',
-              )
-            }
-            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            Nueva supervisión
-          </button>
-
-        </div>
-
-      </div>
+      <PageHeader
+        title={esAdmin ? 'Supervisiones' : 'Mis supervisiones'}
+        description={
+          esAdmin
+            ? 'Historial de todas las supervisiones realizadas.'
+            : 'Historial de sus supervisiones realizadas.'
+        }
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={handleExportarPdf}
+              disabled={cargando || exportandoPdf || total === 0}
+              loading={exportandoPdf}
+              loadingText="Generando PDF…"
+            >
+              {esAdmin ? 'Exportar PDF' : 'Exportar mis supervisiones'}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => navigate('/supervisiones/nueva')}
+            >
+              Nueva supervisión
+            </Button>
+          </>
+        }
+      />
 
       {/* FILTROS */}
 
-      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <FilterPanel
+        title="Filtrar supervisiones"
+        description="Combine el rango de fechas con la clasificación."
+        onClear={handleLimpiarFiltros}
+        clearDisabled={!hayFiltros || cargando}
+      >
 
-        <div className="mb-4">
-
-          <h2 className="font-semibold text-slate-800">
-            Filtrar supervisiones
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Puede combinar el rango de fechas con la clasificación.
-          </p>
-
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 
           {/* FECHA DESDE */}
 
-          <div>
-
-            <label
-              htmlFor="fechaDesde"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Fecha desde
-            </label>
-
-            <input
-              id="fechaDesde"
-              type="date"
-              value={fechaDesde}
-              max={
-                fechaHasta ||
-                undefined
-              }
-              onChange={(event) =>
-                handleFechaDesdeChange(
-                  event.target.value,
-                )
-              }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-
-          </div>
+          <DatePickerField
+            id="fechaDesde"
+            label="Fecha desde"
+            value={fechaDesde}
+            max={fechaHasta || undefined}
+            onChange={handleFechaDesdeChange}
+            placeholder="Elegir fecha desde"
+          />
 
           {/* FECHA HASTA */}
 
-          <div>
-
-            <label
-              htmlFor="fechaHasta"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Fecha hasta
-            </label>
-
-            <input
-              id="fechaHasta"
-              type="date"
-              value={fechaHasta}
-              min={
-                fechaDesde ||
-                undefined
-              }
-              onChange={(event) =>
-                handleFechaHastaChange(
-                  event.target.value,
-                )
-              }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-
-          </div>
+          <DatePickerField
+            id="fechaHasta"
+            label="Fecha hasta"
+            value={fechaHasta}
+            min={fechaDesde || undefined}
+            onChange={handleFechaHastaChange}
+            placeholder="Elegir fecha hasta"
+          />
 
           {/* CLASIFICACIÓN */}
 
@@ -509,36 +453,17 @@ export default function SupervisionesPage() {
 
           </div>
 
-          {/* LIMPIAR */}
-
-          <div className="flex items-end">
-
-            <button
-              type="button"
-              onClick={
-                handleLimpiarFiltros
-              }
-              disabled={
-                !hayFiltros ||
-                cargando
-              }
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Limpiar filtros
-            </button>
-
-          </div>
-
         </div>
-
-      </div>
+      </FilterPanel>
 
       {/* ERROR */}
 
       {error && (
-        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <ErrorBanner
+          className="mb-5"
+          title="No se pudieron cargar las supervisiones"
+          message={error}
+        />
       )}
 
       {/* INFORMACIÓN DE PAGINACIÓN */}
@@ -580,26 +505,33 @@ export default function SupervisionesPage() {
 
       {/* TABLA */}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
 
         {cargando ? (
-
-          <div className="p-8 text-center text-slate-500">
-            {esAdmin
-              ? 'Cargando supervisiones...'
-              : 'Cargando sus supervisiones...'}
-          </div>
-
+          <LoadingState
+            className="border-0 shadow-none"
+            title={
+              esAdmin
+                ? 'Cargando supervisiones…'
+                : 'Cargando sus supervisiones…'
+            }
+          />
         ) : supervisiones.length === 0 ? (
-
-          <div className="p-8 text-center text-slate-500">
-            {hayFiltros
-              ? 'No se encontraron supervisiones con los filtros seleccionados.'
-              : esAdmin
-                ? 'No hay supervisiones registradas.'
-                : 'Todavía no ha realizado supervisiones.'}
-          </div>
-
+          <EmptyState
+            className="m-4 border-0 bg-transparent"
+            title={
+              hayFiltros
+                ? 'Sin resultados'
+                : 'Sin supervisiones'
+            }
+            message={
+              hayFiltros
+                ? 'No se encontraron supervisiones con los filtros seleccionados.'
+                : esAdmin
+                  ? 'Todavía no hay supervisiones registradas en el sistema.'
+                  : 'Todavía no ha realizado supervisiones.'
+            }
+          />
         ) : (
 
           <div className="overflow-x-auto">
@@ -656,7 +588,7 @@ export default function SupervisionesPage() {
                       key={
                         supervision.id
                       }
-                      className="hover:bg-slate-50"
+                      className="transition-colors hover:bg-slate-50/80"
                     >
 
                       {/* FECHA */}
@@ -818,21 +750,14 @@ export default function SupervisionesPage() {
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-            <button
-              type="button"
-              disabled={
-                !puedeAnterior
-              }
-              onClick={() =>
-                setPagina(
-                  paginaActual =>
-                    paginaActual - 1,
-                )
-              }
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!puedeAnterior}
+              onClick={() => setPagina((p) => p - 1)}
             >
-              ← Anterior
-            </button>
+              Anterior
+            </Button>
 
             <span className="text-center text-sm text-slate-500">
               Página{' '}
@@ -845,21 +770,14 @@ export default function SupervisionesPage() {
               </span>
             </span>
 
-            <button
-              type="button"
-              disabled={
-                !puedeSiguiente
-              }
-              onClick={() =>
-                setPagina(
-                  paginaActual =>
-                    paginaActual + 1,
-                )
-              }
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!puedeSiguiente}
+              onClick={() => setPagina((p) => p + 1)}
             >
-              Siguiente →
-            </button>
+              Siguiente
+            </Button>
 
           </div>
 
@@ -905,49 +823,5 @@ function formatearDecision(
   return (
     etiquetas[decision] ??
     decision
-  );
-}
-
-function ClasificacionBadge({
-  clasificacion,
-}: {
-  clasificacion?:
-    | string
-    | null;
-}) {
-  if (!clasificacion) {
-    return (
-      <span className="text-slate-400">
-        -
-      </span>
-    );
-  }
-
-  const estilos:
-    Record<string, string> = {
-      CRITICO:
-        'bg-red-100 text-red-700',
-
-      REGULAR:
-        'bg-amber-100 text-amber-700',
-
-      BUENO:
-        'bg-blue-100 text-blue-700',
-
-      EXCELENTE:
-        'bg-green-100 text-green-700',
-    };
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-        estilos[
-          clasificacion
-        ] ??
-        'bg-slate-100 text-slate-700'
-      }`}
-    >
-      {clasificacion}
-    </span>
   );
 }

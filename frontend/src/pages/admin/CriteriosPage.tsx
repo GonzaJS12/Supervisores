@@ -20,8 +20,22 @@ import type {
 import type {
   CriterioEvaluacion,
 } from '../../types/criterio';
+import { obtenerMensajeError } from '../../utils/http-error';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingState,
+} from '../../components/ui/FeedbackBlock';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
+import { StatusBadge } from '../../components/ui/Badge';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
 export default function CriteriosPage() {
+  const [pendienteConfirmacion, setPendienteConfirmacion] =
+    useState<CriterioEvaluacion | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
+
   const [
     criterios,
     setCriterios,
@@ -293,29 +307,18 @@ export default function CriteriosPage() {
       }
     };
 
-  const handleCambiarEstado =
-    async (
-      criterio:
-        CriterioEvaluacion,
-    ) => {
-      const nuevoEstado =
-        !criterio.activo;
+  const solicitarCambioEstado = (criterio: CriterioEvaluacion) => {
+    setPendienteConfirmacion(criterio);
+  };
 
-      const accion =
-        nuevoEstado
-          ? 'activar'
-          : 'desactivar';
+  const handleCambiarEstado = async () => {
+    const criterio = pendienteConfirmacion;
+    if (!criterio) return;
+    const nuevoEstado = !criterio.activo;
 
-      const confirmado =
-        window.confirm(
-          `¿Está seguro de ${accion} el criterio "${criterio.nombre}"?`,
-        );
+    try {
+      setConfirmando(true);
 
-      if (!confirmado) {
-        return;
-      }
-
-      try {
         setMensaje('');
         setError('');
 
@@ -356,6 +359,9 @@ export default function CriteriosPage() {
             'No se pudo cambiar el estado del criterio.',
           ),
         );
+      } finally {
+        setConfirmando(false);
+        setPendienteConfirmacion(null);
       }
     };
 
@@ -378,34 +384,42 @@ export default function CriteriosPage() {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={pendienteConfirmacion !== null}
+        title={
+          pendienteConfirmacion?.activo
+            ? 'Desactivar criterio'
+            : 'Activar criterio'
+        }
+        message={
+          pendienteConfirmacion
+            ? `¿Está seguro de ${pendienteConfirmacion.activo ? 'desactivar' : 'activar'} el criterio "${pendienteConfirmacion.nombre}"?`
+            : ''
+        }
+        confirmLabel={
+          pendienteConfirmacion?.activo ? 'Desactivar' : 'Activar'
+        }
+        danger={Boolean(pendienteConfirmacion?.activo)}
+        loading={confirmando}
+        onCancel={() => {
+          if (!confirmando) setPendienteConfirmacion(null);
+        }}
+        onConfirm={() => {
+          void handleCambiarEstado();
+        }}
+      />
 
-      {/* ENCABEZADO */}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <PageHeader
+        title="Criterios"
+        description="Administración de los criterios de evaluación."
+        actions={
+          <Button variant="primary" onClick={handleNuevoCriterio}>
+            Nuevo criterio
+          </Button>
+        }
+      />
 
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">
-            Criterios de evaluación
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Administración de los
-            criterios utilizados en las
-            supervisiones.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={
-            handleNuevoCriterio
-          }
-          className="self-start rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          Nuevo criterio
-        </button>
-
-      </div>
 
       {/* MENSAJES */}
 
@@ -416,9 +430,10 @@ export default function CriteriosPage() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <ErrorBanner
+          title="No se pudieron cargar los criterios"
+          message={error}
+        />
       )}
 
       {/* FORMULARIO */}
@@ -636,14 +651,16 @@ export default function CriteriosPage() {
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
         {cargando ? (
-          <div className="p-6 text-sm text-slate-500">
-            Cargando criterios...
-          </div>
+          <LoadingState
+            className="border-0 shadow-none"
+            title="Cargando criterios…"
+          />
         ) : criteriosFiltrados.length === 0 ? (
-          <div className="p-6 text-sm text-slate-500">
-            No hay criterios de
-            evaluación registrados.
-          </div>
+          <EmptyState
+            className="m-4 border-0 bg-transparent"
+            title="Sin criterios"
+            message="No hay criterios de evaluación registrados."
+          />
         ) : (
           <div className="overflow-x-auto">
 
@@ -717,15 +734,7 @@ export default function CriteriosPage() {
                       </td>
 
                       <td className="px-4 py-4">
-                        {criterio.activo ? (
-                          <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                            Activo
-                          </span>
-                        ) : (
-                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                            Inactivo
-                          </span>
-                        )}
+                        <StatusBadge activo={criterio.activo} />
                       </td>
 
                       <td className="px-4 py-4">
@@ -746,7 +755,7 @@ export default function CriteriosPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              handleCambiarEstado(
+                              solicitarCambioEstado(
                                 criterio,
                               )
                             }
@@ -795,40 +804,3 @@ function buscarNombreBloque(
     'Bloque no encontrado';
 }
 
-function obtenerMensajeError(
-  error: unknown,
-  mensajeDefault: string,
-): string {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'response' in error
-  ) {
-    const response = (
-      error as {
-        response?: {
-          data?: {
-            message?:
-              | string
-              | string[];
-          };
-        };
-      }
-    ).response;
-
-    const mensaje =
-      response?.data?.message;
-
-    if (Array.isArray(mensaje)) {
-      return mensaje.join(', ');
-    }
-
-    if (
-      typeof mensaje === 'string'
-    ) {
-      return mensaje;
-    }
-  }
-
-  return mensajeDefault;
-}

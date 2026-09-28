@@ -1,6 +1,7 @@
 import 'dotenv/config';
-import { PrismaClient, RolUsuario } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { buildAdminUpsertData } from '../src/config/seed-admin.util';
 
 const prisma = new PrismaClient();
 
@@ -94,25 +95,12 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
-  const admin = await prisma.usuario.upsert({
-    where: {
-      email: adminEmail,
-    },
-    update: {
-      nombre: 'Administrador',
-      apellido: 'Sistema',
-      rol: RolUsuario.ADMIN,
-      activo: true,
-    },
-    create: {
-      nombre: 'Administrador',
-      apellido: 'Sistema',
+  const admin = await prisma.usuario.upsert(
+    buildAdminUpsertData({
       email: adminEmail,
       passwordHash,
-      rol: RolUsuario.ADMIN,
-      activo: true,
-    },
-  });
+    }),
+  );
 
   console.log(`Administrador creado: ${admin.email}`);
 

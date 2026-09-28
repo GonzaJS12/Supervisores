@@ -12,8 +12,21 @@ import {
 import type {
   BloqueEvaluacion,
 } from '../../types/bloque';
+import { obtenerMensajeError } from '../../utils/http-error';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingState,
+} from '../../components/ui/FeedbackBlock';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
+import { StatusBadge } from '../../components/ui/Badge';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
 export default function BloquesPage() {
+  const [pendienteConfirmacion, setPendienteConfirmacion] =
+    useState<BloqueEvaluacion | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
   const [
     bloques,
     setBloques,
@@ -226,28 +239,22 @@ export default function BloquesPage() {
       }
     };
 
-  const handleCambiarEstado =
-    async (
+  const solicitarCambioEstado = (
       bloque: BloqueEvaluacion,
     ) => {
-      const nuevoEstado =
-        !bloque.activo;
+      setPendienteConfirmacion(bloque);
+    };
 
-      const accion =
-        nuevoEstado
-          ? 'activar'
-          : 'desactivar';
+  const handleCambiarEstado =
+    async () => {
+      const bloque = pendienteConfirmacion;
+      if (!bloque) return;
 
-      const confirmado =
-        window.confirm(
-          `¿Está seguro de ${accion} el bloque "${bloque.nombre}"?`,
-        );
-
-      if (!confirmado) {
-        return;
-      }
+      const nuevoEstado = !bloque.activo;
 
       try {
+        setConfirmando(true);
+
         setMensaje('');
         setError('');
 
@@ -288,39 +295,49 @@ export default function BloquesPage() {
             'No se pudo cambiar el estado del bloque.',
           ),
         );
+      } finally {
+        setConfirmando(false);
+        setPendienteConfirmacion(null);
       }
     };
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={pendienteConfirmacion !== null}
+        title={
+          pendienteConfirmacion?.activo
+            ? 'Desactivar bloque'
+            : 'Activar bloque'
+        }
+        message={
+          pendienteConfirmacion
+            ? `¿Está seguro de ${pendienteConfirmacion.activo ? 'desactivar' : 'activar'} el bloque "${pendienteConfirmacion.nombre}"?`
+            : ''
+        }
+        confirmLabel={
+          pendienteConfirmacion?.activo ? 'Desactivar' : 'Activar'
+        }
+        danger={Boolean(pendienteConfirmacion?.activo)}
+        loading={confirmando}
+        onCancel={() => {
+          if (!confirmando) setPendienteConfirmacion(null);
+        }}
+        onConfirm={() => {
+          void handleCambiarEstado();
+        }}
+      />
 
-      {/* ENCABEZADO */}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">
-            Bloques de evaluación
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Administración de los
-            bloques utilizados en las
-            supervisiones.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={
-            handleNuevoBloque
-          }
-          className="self-start rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          Nuevo bloque
-        </button>
-
-      </div>
+      <PageHeader
+        title="Bloques de evaluación"
+        description="Administración de los bloques utilizados en las supervisiones."
+        actions={
+          <Button variant="primary" onClick={handleNuevoBloque}>
+            Nuevo bloque
+          </Button>
+        }
+      />
 
       {/* MENSAJES */}
 
@@ -331,9 +348,10 @@ export default function BloquesPage() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <ErrorBanner
+          title="No se pudieron cargar los bloques"
+          message={error}
+        />
       )}
 
       {/* FORMULARIO */}
@@ -459,14 +477,16 @@ export default function BloquesPage() {
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
         {cargando ? (
-          <div className="p-6 text-sm text-slate-500">
-            Cargando bloques...
-          </div>
+          <LoadingState
+            className="border-0 shadow-none"
+            title="Cargando bloques…"
+          />
         ) : bloques.length === 0 ? (
-          <div className="p-6 text-sm text-slate-500">
-            No hay bloques de
-            evaluación registrados.
-          </div>
+          <EmptyState
+            className="m-4 border-0 bg-transparent"
+            title="Sin bloques"
+            message="No hay bloques de evaluación registrados."
+          />
         ) : (
           <div className="overflow-x-auto">
 
@@ -538,15 +558,7 @@ export default function BloquesPage() {
                       </td>
 
                       <td className="px-4 py-4">
-                        {bloque.activo ? (
-                          <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                            Activo
-                          </span>
-                        ) : (
-                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                            Inactivo
-                          </span>
-                        )}
+                        <StatusBadge activo={bloque.activo} />
                       </td>
 
                       <td className="px-4 py-4">
@@ -567,7 +579,7 @@ export default function BloquesPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              handleCambiarEstado(
+                              solicitarCambioEstado(
                                 bloque,
                               )
                             }
@@ -600,40 +612,3 @@ export default function BloquesPage() {
   );
 }
 
-function obtenerMensajeError(
-  error: unknown,
-  mensajeDefault: string,
-): string {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'response' in error
-  ) {
-    const response = (
-      error as {
-        response?: {
-          data?: {
-            message?:
-              | string
-              | string[];
-          };
-        };
-      }
-    ).response;
-
-    const mensaje =
-      response?.data?.message;
-
-    if (Array.isArray(mensaje)) {
-      return mensaje.join(', ');
-    }
-
-    if (
-      typeof mensaje === 'string'
-    ) {
-      return mensaje;
-    }
-  }
-
-  return mensajeDefault;
-}

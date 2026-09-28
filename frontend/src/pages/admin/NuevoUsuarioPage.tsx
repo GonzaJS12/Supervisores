@@ -22,6 +22,8 @@ import type {
 import type {
   RolUsuario,
 } from '../../types/usuario';
+import { obtenerMensajeError } from '../../utils/http-error';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function NuevoUsuarioPage() {
   const navigate = useNavigate();
@@ -226,6 +228,7 @@ export default function NuevoUsuarioPage() {
       setError(
         obtenerMensajeError(
           error,
+          'No se pudo crear el usuario.',
         ),
       );
     } finally {
@@ -237,16 +240,11 @@ export default function NuevoUsuarioPage() {
     <div className="mx-auto max-w-3xl">
       {/* ENCABEZADO */}
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">
-          Nuevo usuario
-        </h1>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Crear una cuenta para acceder
-          al sistema.
-        </p>
-      </div>
+      <PageHeader
+        title="Nuevo usuario"
+        description="Crear una cuenta para acceder
+          al sistema."
+      />
 
       {/* FORMULARIO */}
 
@@ -572,48 +570,3 @@ function CampoPassword({
 /*
  * MENSAJES DE ERROR
  */
-function obtenerMensajeError(
-  error: unknown,
-): string {
-  if (
-    typeof error ===
-      'object' &&
-    error !== null &&
-    'response' in error
-  ) {
-    const response = (
-      error as {
-        response?: {
-          data?: {
-            message?:
-              | string
-              | string[];
-          };
-        };
-      }
-    ).response;
-
-    const mensaje =
-      response?.data
-        ?.message;
-
-    if (
-      Array.isArray(
-        mensaje,
-      )
-    ) {
-      return mensaje.join(
-        ', ',
-      );
-    }
-
-    if (
-      typeof mensaje ===
-      'string'
-    ) {
-      return mensaje;
-    }
-  }
-
-  return 'No se pudo crear el usuario.';
-}
