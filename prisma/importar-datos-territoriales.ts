@@ -3,7 +3,87 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const prisma = new PrismaClient();
+function urlDeImportacion(): string {
+  const directa =
+    process.env.DIRECT_URL?.trim();
+
+  const pooled =
+    process.env.DATABASE_URL?.trim();
+
+  const base = directa || pooled;
+
+  if (!base) {
+    throw new Error(
+      'Falta DATABASE_URL o DIRECT_URL para importar',
+    );
+  }
+
+  return base;
+}
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: urlDeImportacion(),
+    },
+  },
+});
+
+async function esperar(ms: number) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function esErrorDeConexion(
+  error: unknown,
+): boolean {
+  const codigo =
+    (error as { code?: string }).code;
+
+  return (
+    codigo === 'P1001' ||
+    codigo === 'P1017' ||
+    codigo === 'P2024'
+  );
+}
+
+async function conReintento<T>(
+  operacion: () => Promise<T>,
+  intentos = 6,
+): Promise<T> {
+  let ultimoError: unknown;
+
+  for (let intento = 1; intento <= intentos; intento++) {
+    try {
+      return await operacion();
+    } catch (error) {
+      ultimoError = error;
+
+      if (!esErrorDeConexion(error) || intento === intentos) {
+        throw error;
+      }
+
+      const espera = Math.min(2000 * intento, 12000);
+
+      console.warn(
+        `Neon no responde. Reintento ${intento}/${intentos} en ${espera}ms...`,
+      );
+
+      await esperar(espera);
+
+      try {
+        await prisma.$connect();
+      } catch {
+        /*
+         * El siguiente intento vuelve a conectar.
+         */
+      }
+    }
+  }
+
+  throw ultimoError;
+}
 
 const archivoDatos = path.join(
   process.cwd(),
@@ -257,24 +337,26 @@ async function importarZonas(
       continue;
     }
 
-    await prisma.zona.upsert({
-      where: {
-        externalZonaId,
-      },
+    await conReintento(() =>
+      prisma.zona.upsert({
+        where: {
+          externalZonaId,
+        },
 
-      update: {
-        nombre,
-        codigo,
-        activo: true,
-      },
+        update: {
+          nombre,
+          codigo,
+          activo: true,
+        },
 
-      create: {
-        externalZonaId,
-        nombre,
-        codigo,
-        activo: true,
-      },
-    });
+        create: {
+          externalZonaId,
+          nombre,
+          codigo,
+          activo: true,
+        },
+      }),
+    );
 
     procesadas++;
   }
@@ -347,11 +429,13 @@ async function importarAreas(
      * externa.
      */
     const zona =
-      await prisma.zona.findUnique({
-        where: {
-          externalZonaId,
-        },
-      });
+      await conReintento(() =>
+        prisma.zona.findUnique({
+          where: {
+            externalZonaId,
+          },
+        }),
+      );
 
     if (!zona) {
       console.warn(
@@ -362,28 +446,30 @@ async function importarAreas(
       continue;
     }
 
-    await prisma.areaOperativa.upsert({
-      where: {
-        externalAreaId,
-      },
+    await conReintento(() =>
+      prisma.areaOperativa.upsert({
+        where: {
+          externalAreaId,
+        },
 
-      update: {
-        zonaId: zona.id,
-        nombre: nombre.trim(),
-        estabBase:
-          estabBase?.trim() || null,
-        activo: true,
-      },
+        update: {
+          zonaId: zona.id,
+          nombre: nombre.trim(),
+          estabBase:
+            estabBase?.trim() || null,
+          activo: true,
+        },
 
-      create: {
-        externalAreaId,
-        zonaId: zona.id,
-        nombre: nombre.trim(),
-        estabBase:
-          estabBase?.trim() || null,
-        activo: true,
-      },
-    });
+        create: {
+          externalAreaId,
+          zonaId: zona.id,
+          nombre: nombre.trim(),
+          estabBase:
+            estabBase?.trim() || null,
+          activo: true,
+        },
+      }),
+    );
 
     procesadas++;
   }
@@ -446,22 +532,24 @@ async function importarRondas(
       active === '1' ||
       active?.toLowerCase() === 'true';
 
-    await prisma.ronda.upsert({
-      where: {
-        externalRondaId,
-      },
+    await conReintento(() =>
+      prisma.ronda.upsert({
+        where: {
+          externalRondaId,
+        },
 
-      update: {
-        nombre: nombre.trim(),
-        activo,
-      },
+        update: {
+          nombre: nombre.trim(),
+          activo,
+        },
 
-      create: {
-        externalRondaId,
-        nombre: nombre.trim(),
-        activo,
-      },
-    });
+        create: {
+          externalRondaId,
+          nombre: nombre.trim(),
+          activo,
+        },
+      }),
+    );
 
     procesadas++;
   }
@@ -589,11 +677,13 @@ async function importarSectores(
     }
 
     const area =
-      await prisma.areaOperativa.findUnique({
-        where: {
-          externalAreaId,
-        },
-      });
+      await conReintento(() =>
+        prisma.areaOperativa.findUnique({
+          where: {
+            externalAreaId,
+          },
+        }),
+      );
 
     if (!area) {
       console.warn(
@@ -625,57 +715,59 @@ async function importarSectores(
       }
     }
 
-    await prisma.sector.upsert({
-      where: {
-        areaOperativaId_numero: {
-          areaOperativaId: area.id,
-          numero: externalSectorId,
+    await conReintento(() =>
+      prisma.sector.upsert({
+        where: {
+          areaOperativaId_numero: {
+            areaOperativaId: area.id,
+            numero: externalSectorId,
+          },
         },
-      },
 
-      update: {
-        externalSectorId,
-        externalUuid:
-          externalUuid?.trim() || null,
+        update: {
+          externalSectorId,
+          externalUuid:
+            externalUuid?.trim() || null,
 
-        nombre:
-          nombre.trim() || null,
+          nombre:
+            nombre.trim() || null,
 
-        cobertura:
-          cobertura?.trim() || null,
+          cobertura:
+            cobertura?.trim() || null,
 
-        activo,
+          activo,
 
-        centroSaludId,
+          centroSaludId,
 
-        centroSaludUuid:
-          centroSaludUuid?.trim() || null,
-      },
+          centroSaludUuid:
+            centroSaludUuid?.trim() || null,
+        },
 
-      create: {
-        areaOperativaId: area.id,
+        create: {
+          areaOperativaId: area.id,
 
-        externalSectorId,
+          externalSectorId,
 
-        externalUuid:
-          externalUuid?.trim() || null,
+          externalUuid:
+            externalUuid?.trim() || null,
 
-        numero: externalSectorId,
+          numero: externalSectorId,
 
-        nombre:
-          nombre.trim() || null,
+          nombre:
+            nombre.trim() || null,
 
-        cobertura:
-          cobertura?.trim() || null,
+          cobertura:
+            cobertura?.trim() || null,
 
-        activo,
+          activo,
 
-        centroSaludId,
+          centroSaludId,
 
-        centroSaludUuid:
-          centroSaludUuid?.trim() || null,
-      },
-    });
+          centroSaludUuid:
+            centroSaludUuid?.trim() || null,
+        },
+      }),
+    );
 
     procesados++;
   }
@@ -859,11 +951,13 @@ async function importarAgentes(
      * nuestro AgenteSanitario.
      */
     const area =
-      await prisma.areaOperativa.findUnique({
-        where: {
-          externalAreaId,
-        },
-      });
+      await conReintento(() =>
+        prisma.areaOperativa.findUnique({
+          where: {
+            externalAreaId,
+          },
+        }),
+      );
 
     if (!area) {
       console.warn(
@@ -885,14 +979,16 @@ async function importarAgentes(
       externalSectorId > 0
     ) {
       const sector =
-        await prisma.sector.findUnique({
-          where: {
-            areaOperativaId_numero: {
-              areaOperativaId: area.id,
-              numero: externalSectorId,
+        await conReintento(() =>
+          prisma.sector.findUnique({
+            where: {
+              areaOperativaId_numero: {
+                areaOperativaId: area.id,
+                numero: externalSectorId,
+              },
             },
-          },
-        });
+          }),
+        );
 
       if (sector) {
         sectorId = sector.id;
@@ -931,7 +1027,8 @@ async function importarAgentes(
     const coberturaLimpia =
       cobertura?.trim() || null;
 
-    await prisma.agenteSanitario.upsert({
+    await conReintento(() =>
+      prisma.agenteSanitario.upsert({
       where: {
         externalUserId,
       },
@@ -973,7 +1070,8 @@ async function importarAgentes(
 
         activo: true,
       },
-    });
+      }),
+    );
 
     procesados++;
   }

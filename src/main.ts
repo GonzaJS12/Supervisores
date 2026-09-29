@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -6,31 +7,14 @@ async function bootstrap() {
   const app =
     await NestFactory.create(AppModule);
 
-  /*
-   * Puerto donde se ejecutará
-   * la API.
-   */
-  const port =
-    Number(process.env.PORT) || 3000;
+  const port = Number(process.env.PORT) || 3000;
 
   /*
-   * Origen autorizado para
-   * consumir la API desde
-   * el navegador.
+   * CORS abierto de forma temporal
+   * para el primer despliegue.
+   * Después se restringirá al frontend.
    */
-  const corsOrigin =
-    process.env.CORS_ORIGIN?.trim();
-
-  if (!corsOrigin) {
-    throw new Error(
-      'CORS_ORIGIN no está configurado',
-    );
-  }
-
-  app.enableCors({
-    origin: corsOrigin,
-    credentials: true,
-  });
+  app.enableCors();
 
   /*
    * Validación global de DTO.
@@ -43,11 +27,9 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(port);
+  app.enableShutdownHooks();
 
-  console.log(
-    `API ejecutándose en el puerto ${port}`,
-  );
+  await app.listen(port, '0.0.0.0');
 }
 
 bootstrap();

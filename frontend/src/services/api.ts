@@ -7,7 +7,10 @@ import axios from 'axios';
  * de entorno de Vite.
  */
 const apiUrl =
-  import.meta.env.VITE_API_URL?.trim();
+  import.meta.env.VITE_API_URL?.trim().replace(
+    /\/$/,
+    '',
+  );
 
 if (!apiUrl) {
   throw new Error(
